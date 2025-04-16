@@ -29,21 +29,13 @@ export default function RootLayout({
             <div className="absolute top-1/2 left-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/10 blur-[150px]" />
             <div className="absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-emerald-500/20 blur-[120px]" />
           </div>
-
-
           <Navbar />
-
-
           <main className="relative">
             <Container>
               {children}
             </Container>
           </main>
-
-
           <Footer />
-
-
         </ThemeProvider>
       </body>
     </html>
