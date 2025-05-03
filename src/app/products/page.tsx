@@ -7,24 +7,20 @@ export default async function ProductsPage() {
 
   if (!products) {
     console.log('No se pudieron cargar los productos.');
-    return <div style={{ padding: '20px' }}>Error al cargar los productos desde la API. Verifica la consola del servidor.</div>;
+    return <div className="p-4">Error al cargar los productos desde la API. Verifica la consola del servidor.</div>;
   }
 
   if (products.length === 0) {
     console.log('La API devolvió 0 productos.');
-    return <div style={{ padding: '20px' }}>No se encontraron productos.</div>;
+    return <div className="p-4">No se encontraron productos.</div>;
   }
 
   console.log(`Mostrando ${products.length} productos.`);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1 style={{ marginBottom: '20px' }}>Catálogo de Productos</h1>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-        gap: '20px'
-      }}>
+    <div className="p-4">
+      <h1 className="mb-4">Catálogo de Productos</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {products.map((product) => (
           <ProductListItem key={product.item_id} product={product} />
         ))}

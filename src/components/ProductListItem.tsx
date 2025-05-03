@@ -1,84 +1,85 @@
-'use client'; 
+'use client';
 
 import Image from 'next/image'; // Re-importar Image
-import type { Product } from '@/actions/productActions'; 
+import Link from 'next/link'; // Import Link
+import { useState } from 'react'; // Import useState
+import type { Product } from '@/actions/productActions';
+
+// Simple slugify function
+function slugify(text: string): string {
+  if (!text) return ''; // Handle cases where text might be undefined or null
+  return text
+    .toString()
+    .toLowerCase()
+    .normalize('NFD') // separate accent from letter
+    .replace(/[\u0300-\u036f]/g, '') // remove all accents
+    .replace(/\s+/g, '-') // Replace spaces with -
+    .replace(/[^\w-]+/g, '') // Remove all non-word chars except -
+    .replace(/--+/g, '-') // Replace multiple - with single -
+    .replace(/^-+/, '') // Trim - from start of text
+    .replace(/-+$/, ''); // Trim - from end of text
+}
 
 interface ProductListItemProps {
   product: Product;
 }
 
 export default function ProductListItem({ product }: ProductListItemProps) {
-  // Usar la URL directamente de la API, sin reemplazar
   const imageUrl = product.url_imagenes?.[0]?.url;
+  const productSlug = slugify(product.item_desc_0);
+  const [imageError, setImageError] = useState(false); // State to track image loading error
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
 
   return (
-    <li 
-      key={product.item_id} 
-      style={{
-        // Estilos de tarjeta
-        border: '1px solid #e2e8f0', 
-        borderRadius: '0.375rem', 
-        overflow: 'hidden', 
-        backgroundColor: 'white',
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)', 
-        margin: '0', // El gap de la cuadrícula manejará el espacio
-        display: 'flex', 
-        flexDirection: 'column', 
-      }}
+    <li
+      key={product.item_id}
+      className="border border-gray-200 rounded-md overflow-hidden bg-white shadow-md m-0 flex flex-col hover:shadow-lg transition-shadow duration-150 ease-in-out"
     >
-      {/* Contenedor de la Imagen */} 
-      <div style={{ position: 'relative', width: '100%', paddingTop: '100%' /* Aspect ratio 1:1 */ }}>
-        {/* Mostrar imagen si hay URL, placeholder si no */}
-        {imageUrl ? (
-          <Image 
-            src={imageUrl} // Usar URL original
-            alt={product.item_desc_0 || 'Imagen del producto'}
-            fill 
-            style={{ objectFit: 'contain', padding: '10px' }} 
-            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw" // Ajustar sizes según el layout de grid
-            onError={() => { 
-              // onError simplificado: solo loguear
-            //   console.error(`Error al cargar imagen (onError): ${imageUrl}`);
-            }}
-            priority={false}
-          />
-        ) : (
-          // Placeholder básico si no hay URL
-          <div style={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#f3f4f6',
-            position: 'absolute', 
-            top: 0, left: 0, right: 0, bottom: 0
-          }}>
-            <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>Imagen no disponible</span>
-          </div>
-        )}
-      </div>
-      
-      {/* Contenedor del Texto */} 
-      <div style={{ padding: '1rem', flexGrow: 1 /* Permitir que el texto crezca si es necesario */ }}> 
-         <h2 style={{ marginTop: 0, color: '#4b5563',fontSize: '1rem', fontWeight: 600, minHeight: '40px', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-          NOMBRE: {product.partNumber}
-         </h2> 
-         <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: '0.25rem 0' }}>
-           <strong>Marca:</strong> {product.marca}
-         </p>
-         <p style={{ fontSize: '1.125rem', color: '#4b5563',fontWeight: 'bold', margin: '0.5rem 0 0 0' }}>
-           ${product.precioNeto_USD.toFixed(2)} <span style={{fontSize: '0.8rem', fontWeight: 'normal'}}>USD</span>
-         </p> 
-         <p style={{ fontSize: '0.8rem', color: product.stock_caba > 0 ? '#10b981' : '#ef4444', margin: '0.25rem 0 0 0' }}>
-           Stock CABA: {product.stock_caba > 0 ? `${product.stock_caba} unidades` : 'Agotado'}
-         </p>
+      <Link href={`/products/${productSlug}`} className="flex flex-col h-full">
+        {/* Contenedor de la Imagen */}
+        <div className="relative w-full pt-[100%] bg-gray-100"> {/* Added bg-gray-100 here for consistent placeholder background */}
+          {/* Mostrar imagen si hay URL y no hay error, placeholder si no */}
+          {imageUrl && !imageError ? (
+            <Image
+              src={imageUrl} // Usar URL original
+              alt={product.item_desc_0 || 'Imagen del producto'}
+              fill
+              className="object-contain p-[10px]"
+              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw" // Ajustar sizes según el layout de grid
+              priority={false}
+              onError={handleImageError} // Add onError handler
+            />
+          ) : (
+            // Placeholder visible if no URL or if imageError is true
+            <div className="absolute inset-0 flex h-full w-full items-center justify-center">
+              <span className="text-sm text-gray-500">Imagen no disponible</span>
+            </div>
+          )}
+        </div>
 
-      </div>
-      {/* Aquí podrías añadir un botón "Añadir al carrito", etc. */}
-       <div style={{ padding: '0 1rem 1rem 1rem' }}>
-         {/* Espacio para botones o acciones futuras */}
-       </div>
+        {/* Contenedor del Texto - Removed flex-grow from here, handled by Link parent */}
+        <div className="p-4 flex-grow"> {/* Added flex-grow here */}
+          <h2 className="mt-0 text-base font-semibold text-gray-600 min-h-[40px] overflow-hidden text-ellipsis line-clamp-2"> {/* Assuming @tailwindcss/line-clamp */}
+            {product.item_desc_0}
+          </h2>
+          <p className="my-1 text-sm text-gray-600">
+            <strong>Marca:</strong> {product.marca}
+          </p><p className="my-1 text-sm text-gray-600">
+            <strong>Categoria:</strong> {product.categoria}
+          </p>
+          {/* <p className="mt-2 text-lg font-bold text-gray-600">
+            ${product.precioNeto_USD.toFixed(2)} <span className="text-sm font-normal">USD</span>
+          </p> */}
+        </div>
+
+        {/* Botón de Cotización (Outside the main text flex-grow to stick to bottom) */}
+        <div className="px-4 pb-4 pt-2 mt-auto"> {/* Added mt-auto */}
+          {/* Placeholder if button is removed/commented */}
+        </div>
+      </Link>
     </li>
   );
 } 

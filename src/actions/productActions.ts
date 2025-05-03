@@ -195,3 +195,82 @@ export async function getCatalog(): Promise<Product[] | null> {
     return null;
   }
 }
+
+// Server Action para obtener UN producto por su ID
+export async function getProductById(productId: number): Promise<Product | null> {
+  console.log(`Intentando obtener el producto con ID: ${productId}...`);
+
+  // 1. Validar ID (básico)
+  if (!productId || isNaN(productId) || productId <= 0) {
+    console.error('ID de producto inválido proporcionado:', productId);
+    return null;
+  }
+
+  // 2. Obtener el token de autenticación
+  const token = await getAuthToken();
+
+  if (!token) {
+    console.error('No se pudo obtener el token para la solicitud del producto individual.');
+    return null;
+  }
+
+  // 3. Construir la URL (Asumiendo que se usa query param ?itemId=...)
+  const productUrl = `${CATALOG_URL}?itemId=${productId}`;
+  console.log(`Token obtenido, realizando solicitud GET a: ${productUrl}`);
+
+  try {
+    // 4. Realizar la solicitud GET al producto específico
+    const response = await fetch(productUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': '*/*',
+        'Authorization': `Bearer ${token}`
+      },
+      // cache: 'no-store' // Considera si necesitas no cachear
+    });
+
+    // 5. Verificar si la respuesta fue exitosa
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`Error al obtener el producto ${productId}: ${response.status} ${response.statusText}`);
+      console.error(`Respuesta del servidor: ${errorBody}`);
+      // Podría ser un 404 si el producto no existe
+      return null;
+    }
+
+    // 6. Parsear la respuesta JSON
+    // La API podría devolver un array con un solo elemento o el objeto directamente.
+    // Asumiremos que devuelve un array con el producto si se encuentra.
+    const data: Product[] | Product = await response.json();
+
+    // Verificar si la respuesta es un array y tiene al menos un elemento
+    if (Array.isArray(data) && data.length > 0) {
+        const product = data[0];
+        // Validar que el ID coincida (opcional pero bueno)
+        if (product.item_id === productId) {
+          console.log(`Producto con ID ${productId} obtenido correctamente.`);
+          return product;
+        } else {
+          console.warn(`La API devolvió un producto, pero el ID no coincide (Esperado: ${productId}, Recibido: ${product.item_id})`);
+          return null; // O manejar como un error
+        }
+    } else if (!Array.isArray(data) && typeof data === 'object' && data !== null && 'item_id' in data) {
+        // Si la API devuelve el objeto directamente
+        if ((data as Product).item_id === productId) {
+            console.log(`Producto con ID ${productId} obtenido correctamente (objeto directo).`);
+            return data as Product;
+        } else {
+            console.warn(`La API devolvió un objeto producto, pero el ID no coincide (Esperado: ${productId}, Recibido: ${(data as Product).item_id})`);
+            return null;
+        }
+    } else {
+      // Si la respuesta no es lo esperado (array vacío, o formato incorrecto)
+      console.warn(`Producto con ID ${productId} no encontrado en la respuesta de la API o formato inesperado.`);
+      return null;
+    }
+
+  } catch (error) {
+    console.error(`Error durante la obtención del producto ${productId}:`, error);
+    return null;
+  }
+}
