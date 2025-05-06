@@ -1,25 +1,113 @@
 'use server';
-// import dbConnect from '@/lib/dbConnect';
-// import Product, { IProduct } from '@/models/Product';
-// import mongoose from 'mongoose';
+import dbConnect from '@/lib/dbConnect';
+import Product, { IProduct } from '@/models/Product';
+import mongoose from 'mongoose';
 
-// // --- Opción 2: Obtener todos los productos ) ---
-// export async function getAllProducts(): Promise<IProduct[]> {
-//     try {
-//         await dbConnect();
-//         const products = await Product.find({}).lean();
+// --- Opción 2: Obtener todos los productos ) ---
+export async function getAllProducts(): Promise<IProduct[]> {
+    try {
+        await dbConnect();
+        const products = await Product.find({ isActive: true }).sort({ createdAt: -1 }).lean(); // Ejemplo: solo activos y ordenados
 
-//         const mappedProducts = products.map(product => ({
-//             ...product,
-//             _id: product._id.toString(),
-//         })) as IProduct[];
+        const mappedProducts = products.map(product => ({
+            ...product,
+            _id: product._id.toString(),
+        })) as IProduct[];
         
-//         return mappedProducts;
-//     } catch (error) {
-//         console.error('Error detallado al buscar productos:', error);
-//         throw new Error('Error al buscar todos los productos.');
-//     }
-// }
+        return mappedProducts;
+    } catch (error) {
+        console.error('Error detallado al buscar productos:', error);
+        throw new Error('Error al buscar todos los productos.');
+    }
+}
+
+// Interfaz para los parámetros de búsqueda y filtro
+interface GetProductsParams {
+  category?: string;
+  subcategory?: string;
+  query?: string; // Para el término de búsqueda
+  page?: number;
+  limit?: number;
+  // Podrías añadir más: sortBy, sortOrder, etc.
+}
+
+// Nueva función para obtener productos de la base de datos con filtros y búsqueda
+export async function getProductsFromDB(
+  params: GetProductsParams = {}
+): Promise<{ products: IProduct[]; totalProducts: number; totalPages: number; currentPage: number }> {
+  const {
+    category,
+    subcategory,
+    query,
+    page = 1,
+    limit = 12, // O un valor por defecto que prefieras para tu grid
+  } = params;
+
+  try {
+    await dbConnect();
+
+    // Construye el objeto de filtro dinámicamente
+    const filter: mongoose.FilterQuery<IProduct> = {
+      isActive: true, // Por defecto, solo productos activos
+    };
+
+    if (category) {
+      filter.category = category;
+    }
+    if (subcategory) {
+      filter.subcategory = subcategory;
+    }
+
+    if (query && query.trim() !== '') {
+      const searchRegex = new RegExp(query.trim(), 'i'); // 'i' para case-insensitive
+      filter.$or = [
+        { item_desc_0: { $regex: searchRegex } },
+        { marca: { $regex: searchRegex } },
+        { codigo: { $regex: searchRegex } },
+        { partNumber: { $regex: searchRegex } },
+        { category: { $regex: searchRegex } },
+        { subcategory: { $regex: searchRegex } },
+        // Considera añadir más campos a la búsqueda si es relevante
+      ];
+      // Si configuras un índice de texto en tu modelo ProductSchema (ej: ProductSchema.index({ item_desc_0: 'text', marca: 'text' ...}) )
+      // podrías usar una búsqueda de texto más optimizada:
+      // filter.$text = { $search: query.trim() };
+      // Y el sort podría ser por relevancia: .sort({ score: { $meta: "textScore" } })
+    }
+    
+    const skip = (page - 1) * limit;
+
+    // Ejecutar la consulta de productos y la de conteo en paralelo
+    const [productsFromDB, totalProducts] = await Promise.all([
+      Product.find(filter)
+        .sort({ createdAt: -1 }) // Ejemplo: ordenar por más nuevos primero (o por relevancia si usas $text)
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      Product.countDocuments(filter).exec(),
+    ]);
+
+    // Mapear para asegurar que _id es string
+    const products = productsFromDB.map(product => ({
+      ...product,
+      _id: product._id.toString(),
+    })) as IProduct[];
+
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    return {
+      products,
+      totalProducts,
+      totalPages,
+      currentPage: page,
+    };
+
+  } catch (error) {
+    console.error('Error fetching products from DB:', error);
+    throw new Error('Error al buscar productos en la base de datos.');
+  }
+}
 
 // URL del endpoint de autenticación
 const authUrl = 'https://api.gruponucleosa.com/Authentication/Login';
@@ -85,14 +173,14 @@ export async function getAuthToken(): Promise<string | null> {
 }
 
 // Interfaz actualizada según el ejemplo de respuesta de la API
-export interface Product {
+export interface ProductApi { // Renombrada para evitar conflicto con el modelo Product
   item_id: number;
   codigo: string;
   ean: string;
   partNumber: string;
   item_desc_0: string;
-  item_desc_1?: string; // Opcional si puede no venir
-  item_desc_2?: string; // Opcional si puede no venir
+  item_desc_1?: string; 
+  item_desc_2?: string; 
   marca: string;
   categoria: string;
   subcategoria: string;
@@ -106,13 +194,12 @@ export interface Product {
   stock_mdp: number;
   stock_caba: number;
   url_imagenes: { url: string }[];
-  // Añadir otros campos si existen
 }
 
 const CATALOG_URL = 'https://api.gruponucleosa.com/API_V1/GetCatalog';
 
-// Server Action para obtener el catálogo de productos
-export async function getCatalog(): Promise<Product[] | null> {
+// Server Action para obtener el catálogo de productos DE LA API EXTERNA
+export async function getCatalog(): Promise<ProductApi[] | null> {
 
   // 1. Obtener el token de autenticación
   const token = await getAuthToken();
@@ -142,7 +229,7 @@ export async function getCatalog(): Promise<Product[] | null> {
     }
 
     // 4. Parsear la respuesta JSON
-    const data: Product[] = await response.json(); // Asume que la respuesta es un array de productos
+    const data: ProductApi[] = await response.json(); // Asume que la respuesta es un array de productos
 
     return data;
 
