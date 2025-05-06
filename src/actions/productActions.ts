@@ -1,35 +1,7 @@
 'use server';
-
 // import dbConnect from '@/lib/dbConnect';
 // import Product, { IProduct } from '@/models/Product';
 // import mongoose from 'mongoose';
-
-// // --- Opción 1: Obtener un producto por su ID ---
-// export async function getProductById(id: string): Promise<IProduct | null> {
-//   // Validar si el ID es un ObjectId válido de MongoDB
-//   if (!mongoose.Types.ObjectId.isValid(id)) {
-//       console.error('ID inválido:', id);
-//       return null; // O lanzar un error específico
-//   }
-
-//   try {
-//     await dbConnect();
-
-//     const product = await Product.findById(id).lean();
-
-//     if (product) {
-//       return {
-//          ...product,
-//          _id: product._id.toString(),
-//        } as IProduct;
-//     } else {
-//       return null;
-//     }
-//   } catch (error) {
-//     console.error('Error fetching product by ID:', error);
-//     throw new Error('Error al buscar el producto en la base de datos.');
-//   }
-// }
 
 // // --- Opción 2: Obtener todos los productos ) ---
 // export async function getAllProducts(): Promise<IProduct[]> {
@@ -48,7 +20,6 @@
 //         throw new Error('Error al buscar todos los productos.');
 //     }
 // }
-
 
 // URL del endpoint de autenticación
 const authUrl = 'https://api.gruponucleosa.com/Authentication/Login';
@@ -100,14 +71,10 @@ export async function getAuthToken(): Promise<string | null> {
       const errorBody = await response.text(); 
       console.error(`Error en la solicitud de autenticación: ${response.status} ${response.statusText}`);
       console.error(`Respuesta del servidor: ${errorBody}`);
-      // Considera no lanzar un error aquí, sino devolver null para que el llamador decida
-      // throw new Error(`HTTP error! status: ${response.status}`); 
       return null;
     }
 
     const accessToken = await response.text();
-    console.log("Solicitud de autenticación exitosa!"); // Considera quitar logs en producción
-    // console.log("Token de acceso:", accessToken); // No loguear tokens en producción
 
     return accessToken;
 
@@ -116,13 +83,6 @@ export async function getAuthToken(): Promise<string | null> {
     return null; 
   }
 }
-
-// La función `main` y los comentarios extensos han sido eliminados.
-// Ahora puedes importar y llamar a `getAuthToken` desde donde lo necesites.
-
-// Próximos pasos a considerar:
-// 1. Almacenamiento en caché del token para evitar solicitarlo en cada acción.
-// 2. Manejo de la expiración del token (15 minutos).
 
 // Interfaz actualizada según el ejemplo de respuesta de la API
 export interface Product {
@@ -153,7 +113,6 @@ const CATALOG_URL = 'https://api.gruponucleosa.com/API_V1/GetCatalog';
 
 // Server Action para obtener el catálogo de productos
 export async function getCatalog(): Promise<Product[] | null> {
-  console.log('Intentando obtener el catálogo...');
 
   // 1. Obtener el token de autenticación
   const token = await getAuthToken();
@@ -162,8 +121,6 @@ export async function getCatalog(): Promise<Product[] | null> {
     console.error('No se pudo obtener el token para la solicitud del catálogo.');
     return null;
   }
-
-  console.log('Token obtenido, realizando solicitud GET al catálogo...');
 
   try {
     // 2. Realizar la solicitud GET al catálogo con el token
@@ -186,91 +143,11 @@ export async function getCatalog(): Promise<Product[] | null> {
 
     // 4. Parsear la respuesta JSON
     const data: Product[] = await response.json(); // Asume que la respuesta es un array de productos
-    console.log(`Catálogo obtenido con ${data.length} productos.`);
 
     return data;
 
   } catch (error) {
     console.error('Error durante la obtención del catálogo:', error);
-    return null;
-  }
-}
-
-// Server Action para obtener UN producto por su ID
-export async function getProductById(productId: number): Promise<Product | null> {
-  console.log(`Intentando obtener el producto con ID: ${productId}...`);
-
-  // 1. Validar ID (básico)
-  if (!productId || isNaN(productId) || productId <= 0) {
-    console.error('ID de producto inválido proporcionado:', productId);
-    return null;
-  }
-
-  // 2. Obtener el token de autenticación
-  const token = await getAuthToken();
-
-  if (!token) {
-    console.error('No se pudo obtener el token para la solicitud del producto individual.');
-    return null;
-  }
-
-  // 3. Construir la URL (Asumiendo que se usa query param ?itemId=...)
-  const productUrl = `${CATALOG_URL}?itemId=${productId}`;
-  console.log(`Token obtenido, realizando solicitud GET a: ${productUrl}`);
-
-  try {
-    // 4. Realizar la solicitud GET al producto específico
-    const response = await fetch(productUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': '*/*',
-        'Authorization': `Bearer ${token}`
-      },
-      // cache: 'no-store' // Considera si necesitas no cachear
-    });
-
-    // 5. Verificar si la respuesta fue exitosa
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`Error al obtener el producto ${productId}: ${response.status} ${response.statusText}`);
-      console.error(`Respuesta del servidor: ${errorBody}`);
-      // Podría ser un 404 si el producto no existe
-      return null;
-    }
-
-    // 6. Parsear la respuesta JSON
-    // La API podría devolver un array con un solo elemento o el objeto directamente.
-    // Asumiremos que devuelve un array con el producto si se encuentra.
-    const data: Product[] | Product = await response.json();
-
-    // Verificar si la respuesta es un array y tiene al menos un elemento
-    if (Array.isArray(data) && data.length > 0) {
-        const product = data[0];
-        // Validar que el ID coincida (opcional pero bueno)
-        if (product.item_id === productId) {
-          console.log(`Producto con ID ${productId} obtenido correctamente.`);
-          return product;
-        } else {
-          console.warn(`La API devolvió un producto, pero el ID no coincide (Esperado: ${productId}, Recibido: ${product.item_id})`);
-          return null; // O manejar como un error
-        }
-    } else if (!Array.isArray(data) && typeof data === 'object' && data !== null && 'item_id' in data) {
-        // Si la API devuelve el objeto directamente
-        if ((data as Product).item_id === productId) {
-            console.log(`Producto con ID ${productId} obtenido correctamente (objeto directo).`);
-            return data as Product;
-        } else {
-            console.warn(`La API devolvió un objeto producto, pero el ID no coincide (Esperado: ${productId}, Recibido: ${(data as Product).item_id})`);
-            return null;
-        }
-    } else {
-      // Si la respuesta no es lo esperado (array vacío, o formato incorrecto)
-      console.warn(`Producto con ID ${productId} no encontrado en la respuesta de la API o formato inesperado.`);
-      return null;
-    }
-
-  } catch (error) {
-    console.error(`Error durante la obtención del producto ${productId}:`, error);
     return null;
   }
 }

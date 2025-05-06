@@ -1,21 +1,37 @@
 import { getCatalog } from '@/actions/productActions';
 import ProductListItem from '@/components/ProductListItem';
+import { isImageAccessible } from '@/utils/isImageAccesible';
+
 
 export default async function ProductsPage() {
-  console.log('Renderizando página de productos...');
-  const products = await getCatalog();
+  const initialProducts = await getCatalog();
 
-  if (!products) {
-    console.log('No se pudieron cargar los productos.');
-    return <div className="p-4">Error al cargar los productos desde la API. Verifica la consola del servidor.</div>;
+  if (!initialProducts) {
+    return <div className="p-4">Disculpas, hubo un error al cargar los productos</div>;
   }
+
+  if (initialProducts.length === 0) {
+    return <div className="p-4">No se encontraron productos disponibles inicialmente.</div>;
+  }
+
+  // Filtrar productos verificando la accesibilidad de la primera imagen
+  const productChecks = await Promise.all(
+    initialProducts.map(async (product) => {
+      // Asumimos que la primera imagen es la principal, o usamos una lógica específica si es necesario
+      const imageUrl = product.url_imagenes?.[0]?.url;
+      const isAccessible = await isImageAccessible(imageUrl);
+      return { product, isAccessible };
+    })
+  );
+
+  const products = productChecks
+    .filter(check => check.isAccessible) // Mantenemos solo los productos con imagen accesible
+    .map(check => check.product)
+    .sort((a,b) => a.item_desc_0.localeCompare(b.item_desc_0)); 
 
   if (products.length === 0) {
-    console.log('La API devolvió 0 productos.');
-    return <div className="p-4">No se encontraron productos.</div>;
+    return <div className="p-4">No se encontraron productos con imágenes válidas disponibles.</div>;
   }
-
-  console.log(`Mostrando ${products.length} productos.`);
 
   return (
     <div className="p-4">
