@@ -1,4 +1,4 @@
-import { ShoppingCart, MessageCircle, Search, CreditCard, HelpCircle } from "lucide-react"
+import { ShoppingCart, Search, CreditCard, HelpCircle } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
@@ -29,7 +29,7 @@ export default function ComprarPage() {
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold text-white mb-2">Paso 1</h3>
-                  <p className="text-gray-300">Explora nuestros productos y añade los que te interesen al carrito.</p>
+                  <p className="text-gray-300">Explora nuestros productos en la sección de <Link href="/productos" className="text-[#00E599] hover:underline">Productos</Link>.</p>
                 </div>
               </div>
 
@@ -40,30 +40,16 @@ export default function ComprarPage() {
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold text-white mb-2">Paso 2</h3>
-                  <p className="text-gray-300">Dirígete a tu carrito.</p>
+                  <p className="text-gray-300">Clickea en el producto que te interesa y haz click en el botón <span className="font-bold">Consultar cotización</span>.</p>
                 </div>
               </div>
-
               {/* Paso 3 */}
-              <div className="flex gap-6 items-start">
-                <div className="flex-shrink-0 h-12 w-12 rounded-full bg-[#00E599]/20 flex items-center justify-center">
-                  <MessageCircle className="h-6 w-6 text-[#00E599]" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-white mb-2">Paso 3</h3>
-                  <p className="text-gray-300">
-                    En el carrito, encontrarás un botón con el logo de WhatsApp y el texto &quot;Consultar&quot;.
-                  </p>
-                </div>
-              </div>
-
-              {/* Paso 4 */}
               <div className="flex gap-6 items-start">
                 <div className="flex-shrink-0 h-12 w-12 rounded-full bg-[#00E599]/20 flex items-center justify-center">
                   <CreditCard className="h-6 w-6 text-[#00E599]" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-white mb-2">Paso 4</h3>
+                  <h3 className="text-xl font-semibold text-white mb-2">Paso 3</h3>
                   <p className="text-gray-300">
                     Completa el formulario, y serás redirigido automáticamente a una conversación en WhatsApp con
                     nuestro equipo. El mensaje incluirá tus datos ingresados y la descripción de los productos que hayas
@@ -99,7 +85,7 @@ export default function ComprarPage() {
                 <h3 className="text-xl font-semibold text-white mb-2">¿Cómo puedo pagar mi compra?</h3>
                 <p className="text-gray-300">
                   Ofrecemos múltiples métodos de pago que coordinaremos contigo a través de WhatsApp, incluyendo
-                  transferencia bancaria, efectivo y descuento directo para afiliados de sindicatos y mutuales con
+                  transferencia bancaria, efectivo y pago en cuotas con descuento por planilla para afiliados de sindicatos y mutuales con
                   convenio.
                 </p>
               </div>
@@ -107,15 +93,14 @@ export default function ComprarPage() {
               <div className="bg-[#111827] p-6 rounded-xl border border-gray-800">
                 <h3 className="text-xl font-semibold text-white mb-2">¿Realizan envíos?</h3>
                 <p className="text-gray-300">
-                  Sí, realizamos envíos a toda la ciudad de Córdoba y alrededores. Los detalles de envío y costos serán
-                  coordinados durante la conversación por WhatsApp.
+                  Sí, realizamos envíos gratuitos a toda la ciudad de Córdoba y alrededores.
                 </p>
               </div>
 
               <div className="bg-[#111827] p-6 rounded-xl border border-gray-800">
                 <h3 className="text-xl font-semibold text-white mb-2">¿Puedo consultar sin compromiso de compra?</h3>
                 <p className="text-gray-300">
-                  ¡Por supuesto! Puedes utilizar el sistema de carrito y WhatsApp simplemente para consultar precios,
+                  ¡Por supuesto! Puedes utilizar el sistema de cotización simplemente para consultar precios,
                   disponibilidad o cualquier duda sobre nuestros productos sin compromiso alguno.
                 </p>
               </div>

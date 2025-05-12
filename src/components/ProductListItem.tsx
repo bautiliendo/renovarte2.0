@@ -3,7 +3,8 @@
 import Image from 'next/image'; // Re-importar Image
 import Link from 'next/link'; // Import Link
 import { useState } from 'react'; // Import useState
-import type { Product } from '@/actions/productActions';
+// import type { Product } from '@/actions/productActions'; // Old import
+import type { IProduct } from '@/models/Product'; // New import for IProduct
 
 // Simple slugify function
 function slugify(text: string): string {
@@ -21,7 +22,7 @@ function slugify(text: string): string {
 }
 
 interface ProductListItemProps {
-  product: Product;
+  product: IProduct;
 }
 
 export default function ProductListItem({ product }: ProductListItemProps) {
@@ -35,7 +36,7 @@ export default function ProductListItem({ product }: ProductListItemProps) {
 
   return (
     <li
-      key={product.item_id}
+      key={product._id.toString()}
       className="border border-gray-200 rounded-md overflow-hidden bg-white shadow-md m-0 flex flex-col hover:shadow-lg transition-shadow duration-150 ease-in-out"
     >
       <Link href={`/products/${productSlug}`} className="flex flex-col h-full">
@@ -68,11 +69,14 @@ export default function ProductListItem({ product }: ProductListItemProps) {
           <p className="my-1 text-sm text-gray-600">
             <strong>Marca:</strong> {product.marca}
           </p><p className="my-1 text-sm text-gray-600">
-            <strong>Categoria:</strong> {product.categoria}
+            <strong>Categoria:</strong> {product.category}
           </p>
-          {/* <p className="mt-2 text-lg font-bold text-gray-600">
-            ${product.precioNeto_USD.toFixed(2)} <span className="text-sm font-normal">USD</span>
-          </p> */}
+          <p className="mt-2 text-lg font-bold text-gray-600">
+            {typeof product.precioNeto_USD === 'number' 
+              ? `$${product.precioNeto_USD.toFixed(2)} ` 
+              : 'Precio no disponible '}
+            <span className="text-sm font-normal">USD</span>
+          </p>
         </div>
 
         {/* Botón de Cotización (Outside the main text flex-grow to stick to bottom) */}

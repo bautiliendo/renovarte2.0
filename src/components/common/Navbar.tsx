@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Menu, Search, ShoppingCart } from "lucide-react"
+import { Menu, Search } from "lucide-react"
 import Link from "next/link"
 
 export function Navbar() {
@@ -47,7 +47,7 @@ export function Navbar() {
           </div>
 
           {/* Mobile: Cart */}
-          <div className="flex items-center md:hidden">
+          {/* <div className="flex items-center md:hidden">
             <Button
               variant="ghost"
               className="p-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -55,7 +55,7 @@ export function Navbar() {
               <ShoppingCart className="h-5 w-5 mr-1" />
               <span className="text-sm font-medium">Cart</span>
             </Button>
-          </div>
+          </div> */}
         </div>
 
         {/* Searchbar */}
@@ -79,10 +79,10 @@ export function Navbar() {
               Empresa
             </Link>
           </nav>
-          <Button variant="outline">
+          {/* <Button variant="outline">
             <ShoppingCart className="h-4 w-4 mr-2" />
             Cart
-          </Button>
+          </Button> */}
         </div>
       </div>
     </header>
