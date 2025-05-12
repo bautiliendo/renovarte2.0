@@ -238,3 +238,165 @@ export async function getCatalog(): Promise<ProductApi[] | null> {
     return null;
   }
 }
+
+// Interface para detallar los errores durante la sincronización
+interface ErrorInfo {
+  context?: string; // e.g., "Product ID: 12345" or "General Sync"
+  message: string;   // El mensaje de error
+}
+
+// Nueva Server Action para sincronizar productos desde la API externa a MongoDB
+export async function syncProductsFromApi(): Promise<{
+  success: boolean;
+  message: string;
+  processedCount: number;
+  createdCount: number;
+  updatedCount: number;
+  errors: ErrorInfo[]; // Usar el tipo específico aquí
+}> {
+  console.log('Iniciando sincronización de productos desde la API externa...');
+  await dbConnect();
+
+  let processedCount = 0;
+  let createdCount = 0;
+  let updatedCount = 0;
+  const errors: ErrorInfo[] = []; // Usar el tipo específico aquí
+
+  try {
+    // 1. Obtener todos los productos de la API externa
+    const apiProducts: ProductApi[] | null = await getCatalog();
+
+    if (!apiProducts) {
+      console.error('Error en la sincronización: No se pudieron obtener productos de la API.');
+      return {
+        success: false,
+        message: 'Error al obtener productos de la API externa.',
+        processedCount, createdCount, updatedCount, errors
+      };
+    }
+
+    if (apiProducts.length === 0) {
+      console.log('Sincronización: La API externa no devolvió productos.');
+      return {
+        success: true,
+        message: 'La API externa no devolvió productos. No hay nada que sincronizar.',
+        processedCount, createdCount, updatedCount, errors
+      };
+    }
+
+    console.log(`Sincronización: Se obtuvieron ${apiProducts.length} productos de la API.`);
+
+    // 2. Iterar sobre los productos de la API y sincronizarlos con MongoDB
+    for (const apiProduct of apiProducts) {
+      processedCount++;
+      try {
+        // Mapear el producto de la API a la estructura de IProduct
+        // Asegúrate de que los campos coincidan con tu ProductSchema
+        const productToStore: Partial<IProduct> = {
+          api_item_id: apiProduct.item_id,
+          source: 'api',
+          codigo: apiProduct.codigo,
+          ean: apiProduct.ean,
+          partNumber: apiProduct.partNumber,
+          item_desc_0: apiProduct.item_desc_0,
+          item_desc_1: apiProduct.item_desc_1,
+          item_desc_2: apiProduct.item_desc_2,
+          marca: apiProduct.marca,
+          category: apiProduct.categoria, // Asegúrate que estos nombres de campo coincidan con tu IProduct
+          subcategory: apiProduct.subcategoria, // Asegúrate que estos nombres de campo coincidan con tu IProduct
+          peso_gr: apiProduct.peso_gr,
+          alto_cm: apiProduct.alto_cm,
+          ancho_cm: apiProduct.ancho_cm,
+          largo_cm: apiProduct.largo_cm,
+          volumen_cm3: apiProduct.volumen_cm3,
+          precioNeto_USD: apiProduct.precioNeto_USD,
+          impuestos: apiProduct.impuestos?.map(imp => ({ imp_desc: imp.imp_desc, imp_porcentaje: imp.imp_porcentaje })),
+          stock_mdp: apiProduct.stock_mdp,
+          stock_caba: apiProduct.stock_caba,
+          url_imagenes: apiProduct.url_imagenes?.map(img => ({ url: img.url })),
+          isActive: true, // Por defecto, los productos de la API se marcan como activos
+          // description: apiProduct.item_desc_0, // O alguna otra descripción si quieres
+        };
+
+        // Utilizar 'upsert' para crear o actualizar el producto basado en api_item_id
+        // 'upsert' significa: si el documento con el filtro existe, actualízalo; si no, créalo.
+        const result = await Product.updateOne(
+          { api_item_id: apiProduct.item_id }, // Filtro para encontrar el producto
+          { $set: productToStore },            // Datos para establecer/actualizar
+          { upsert: true }                      // Opción de upsert
+        );
+
+        if (result.upsertedCount > 0) {
+          createdCount++;
+          console.log(`Sincronización: Producto CREADO con api_item_id: ${apiProduct.item_id}`);
+        } else if (result.modifiedCount > 0) {
+          updatedCount++;
+          console.log(`Sincronización: Producto ACTUALIZADO con api_item_id: ${apiProduct.item_id}`);
+        } else if (result.matchedCount > 0) {
+           // Coincidió pero no se modificó (los datos eran idénticos)
+           console.log(`Sincronización: Producto con api_item_id: ${apiProduct.item_id} ya estaba actualizado.`);
+        }
+
+
+      } catch (productError) {
+        console.error(`Sincronización: Error procesando producto con api_item_id: ${apiProduct.item_id}`, productError);
+        errors.push({
+          context: `Product api_item_id: ${apiProduct.item_id}`,
+          message: productError instanceof Error ? productError.message : String(productError)
+        });
+      }
+    }
+
+    const summaryMessage = `Sincronización completada. Productos procesados: ${processedCount}. Creados: ${createdCount}. Actualizados: ${updatedCount}. Errores: ${errors.length}.`;
+    console.log(summaryMessage);
+    return {
+      success: true,
+      message: summaryMessage,
+      processedCount,
+      createdCount,
+      updatedCount,
+      errors
+    };
+
+  } catch (error) {
+    console.error('Error general durante la sincronización de productos:', error);
+    errors.push({
+      context: 'General Synchronization Error',
+      message: error instanceof Error ? error.message : String(error)
+    });
+    return {
+      success: false,
+      message: 'Error general durante la sincronización.',
+      processedCount,
+      createdCount,
+      updatedCount,
+      errors
+    };
+  }
+}
+
+// Function to get specific featured products
+export async function getFeaturedProducts(): Promise<IProduct[]> {
+  try {
+    await dbConnect();
+    
+    const featuredDescriptions = [
+      "NOTEBOOK LENOVO IP SLIM 3 15IAH8 I5-12450H 8GB 512SSD 156 FHD W11H (83ER0022AR) ARCTIC GREY",
+      "TV LED 4K 43 PHILIPS 43PUD740877 - UHD SMART NETFLIX USB HDMI",
+      "CELULAR XIAOMI REDMI NOTE 13 256GB-8GB MIDNIGHT BLACK DUAL NANO SIM (MZB0GA1AR)"
+    ];
+
+    const products = await Product.find({
+      item_desc_0: { $in: featuredDescriptions },
+      isActive: true
+    }).lean();
+
+    return products.map(product => ({
+      ...product,
+      _id: product._id.toString(),
+    })) as IProduct[];
+  } catch (error) {
+    console.error('Error fetching featured products:', error);
+    throw new Error('Error al buscar productos destacados.');
+  }
+}
