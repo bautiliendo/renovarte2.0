@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, use } from 'react'
+import React, { useState, use, useEffect } from 'react'
 import Image from 'next/image';
 import { getCatalog, type ProductApi } from '@/actions/productActions';
 import ExpandableDescription from '@/components/ExpandableDescription';
@@ -17,51 +17,75 @@ interface ProductDetailPageProps {
 export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [product, setProduct] = useState<ProductApi | null>(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const resolvedParams = use(params);
   const slug = resolvedParams.slug;
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchProduct = async () => {
+      setIsLoading(true);
       const allProducts = await getCatalog();
       if (allProducts) {
         const foundProduct = allProducts.find(p => slugify(p.item_desc_0) === slug);
-        setProduct(foundProduct || null);
+        
+        if (foundProduct) {
+          setProduct(foundProduct);
+          setSelectedImageUrl(foundProduct.url_imagenes?.[0]?.url || null);
+        } else {
+          setProduct(null);
+          setSelectedImageUrl(null);
+        }
+      } else {
+        setProduct(null);
+        setSelectedImageUrl(null);
       }
+      setIsLoading(false);
     };
     fetchProduct();
   }, [slug]);
+
+  if (isLoading) {
+    return <div className="p-4 text-center text-gray-600 min-h-[500px]">Cargando producto...</div>;
+  }
 
   if (!product) {
     return <div className="p-4 text-center text-gray-600 min-h-[500px]">Producto no encontrado.</div>;
   }
 
-  const primaryImageUrl = product.url_imagenes?.[0]?.url;
+  const handleThumbnailClick = (imageUrl: string) => {
+    setSelectedImageUrl(imageUrl);
+  };
 
   return (
     <>
-      <div className="container mx-auto p-4 md:p-8 bg-white m-8 border border-gray-200 rounded-md">
+      <div className="container mx-auto min-h-[500px] p-4 md:p-8 bg-white m-8 border border-gray-200 rounded-md">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Image Section */}
           <div className="relative aspect-square border rounded-md overflow-hidden bg-gray-100">
-            {primaryImageUrl ? (
+            {selectedImageUrl ? (
               <Image
-                src={primaryImageUrl}
+                src={selectedImageUrl}
                 alt={product.item_desc_0 || 'Imagen del producto'}
                 fill
                 className="object-contain p-4"
                 sizes="(max-width: 768px) 100vw, 50vw"
                 priority
+                key={selectedImageUrl}
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-gray-500">Imagen no disponible</span>
               </div>
             )}
-            {/* Optional: Thumbnail gallery for multiple images */}
             {product.url_imagenes && product.url_imagenes.length > 1 && (
-              <div className="absolute bottom-2 left-2 right-2 flex space-x-2 justify-center">
+              <div className="absolute bottom-2 left-2 right-2 flex space-x-2 justify-center p-1 bg-white/75 rounded">
                 {product.url_imagenes.map((img: { url: string }, index: number) => (
-                  <div key={index} className="w-12 h-12 border rounded overflow-hidden relative cursor-pointer hover:border-blue-500">
+                  <div 
+                    key={index} 
+                    className={`w-12 h-12 border rounded overflow-hidden relative cursor-pointer hover:border-blue-500 ${selectedImageUrl === img.url ? 'border-blue-500 border-2' : 'border-gray-300'}`}
+                    onClick={() => handleThumbnailClick(img.url)}
+                  >
                     <Image src={img.url} alt={`Thumbnail ${index + 1}`} fill className="object-contain" />
                   </div>
                 ))}

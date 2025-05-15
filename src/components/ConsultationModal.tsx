@@ -64,9 +64,12 @@ export const ConsultationModal: React.FC<ModalProps> = ({ open, onClose, product
 
                 <form className="p-6 space-y-4" onSubmit={handleSubmit}>
                     <div className="space-y-2">
-                        <label htmlFor="nombre" className="block text-sm font-medium text-gray-700">
-                            Nombre y Apellido *
-                        </label>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="nombre" className="block text-sm font-medium text-gray-700">
+                                Nombre y Apellido 
+                            </label>
+                            <p className="text-sm text-red-500">*</p>
+                        </div>
                         <input 
                             type="text" 
                             id="nombre" 
@@ -78,9 +81,12 @@ export const ConsultationModal: React.FC<ModalProps> = ({ open, onClose, product
                     </div>
 
                     <div className="space-y-2">
-                        <label htmlFor="ciudad" className="block text-sm font-medium text-gray-700">
-                            Ciudad *
-                        </label>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="ciudad" className="block text-sm font-medium text-gray-700">
+                                Ciudad
+                            </label>
+                            <p className="text-sm text-red-500">*</p>
+                        </div>
                         <input 
                             type="text" 
                             id="ciudad" 
@@ -92,9 +98,12 @@ export const ConsultationModal: React.FC<ModalProps> = ({ open, onClose, product
                     </div>
 
                     <div className="space-y-2">
-                        <label htmlFor="barrio" className="block text-sm font-medium text-gray-700">
-                            Barrio *
-                        </label>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="barrio" className="block text-sm font-medium text-gray-700">
+                                Barrio 
+                            </label>
+                            <p className="text-sm text-red-500">*</p>
+                        </div>
                         <input 
                             type="text" 
                             id="barrio" 
@@ -106,9 +115,12 @@ export const ConsultationModal: React.FC<ModalProps> = ({ open, onClose, product
                     </div>
 
                     <div className="space-y-2">
-                        <label htmlFor="mutual" className="block text-sm font-medium text-gray-700">
-                            Mutual
-                        </label>
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="mutual" className="block text-sm font-medium text-gray-700">
+                                Mutual
+                            </label>
+                            <p className="text-sm text-red-500">*</p>
+                        </div>
                         <select 
                             id="mutual" 
                             name="mutual"

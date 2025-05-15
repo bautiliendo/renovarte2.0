@@ -3,6 +3,8 @@ import ProductListItem from '@/components/ProductListItem';
 import { isImageAccessible } from '@/utils/isImageAccesible';
 import { IProduct } from '@/models/Product';
 
+export const revalidate = 3600; // Revalidar la página cada hora
+
 export default async function ProductsPage() {
   console.log("ProductsPage: Intentando obtener todos los productos de la DB...");
 
@@ -36,8 +38,6 @@ export default async function ProductsPage() {
       );
     }
 
-    // productData.products.length > 0, so we can proceed with image checks
-
   } catch (error) {
     console.error("ProductsPage: Error general al obtener productos:", error);
     return (
@@ -50,7 +50,6 @@ export default async function ProductsPage() {
   }
 
   if (!productData) {
-    // This fallback should ideally not be reached if try-catch is comprehensive
     return (
       <div className="p-4">
         <h1>Error Inesperado</h1>
@@ -59,18 +58,21 @@ export default async function ProductsPage() {
     );
   }
 
-  // Re-introduce image accessibility checks
-  // console.log(`ProductsPage: Verificando imágenes para ${productData.products.length} productos...`);
-  const productChecks = await Promise.all(
-    productData.products.map(async (product: IProduct) => {
-      const imageUrl = product.url_imagenes?.[0]?.url;
-      const isAccessible = imageUrl ? await isImageAccessible(imageUrl) : false;
-      if (!isAccessible && imageUrl) {
-        // console.warn(`ProductsPage: Imagen no accesible o inválida para producto ${product._id}: ${imageUrl}`);
-      }
-      return { product, isAccessible };
-    })
-  );
+  // Verificar imágenes en paralelo con límite de concurrencia
+  const batchSize = 10;
+  const productChecks = [];
+  
+  for (let i = 0; i < productData.products.length; i += batchSize) {
+    const batch = productData.products.slice(i, i + batchSize);
+    const batchChecks = await Promise.all(
+      batch.map(async (product: IProduct) => {
+        const imageUrl = product.url_imagenes?.[0]?.url;
+        const isAccessible = imageUrl ? await isImageAccessible(imageUrl) : false;
+        return { product, isAccessible };
+      })
+    );
+    productChecks.push(...batchChecks);
+  }
 
   const displayableProducts = productChecks
     .filter((check: { product: IProduct; isAccessible: boolean }) => check.isAccessible)
@@ -80,12 +82,11 @@ export default async function ProductsPage() {
   console.log(`ProductsPage: ${displayableProducts.length} productos tienen imágenes accesibles y se mostrarán.`);
 
   if (displayableProducts.length === 0) {
-    // This means products were fetched, but none had accessible images
     return (
-        <div className="p-4 text-center">
-            <p className="mb-4">Se encontraron {productData.totalProducts} productos, pero ninguno tiene una imagen principal válida o accesible en este momento.</p>
-            <p className="text-sm text-gray-500">Por favor, verifica las URLs de las imágenes de los productos.</p>
-        </div>
+      <div className="p-4 text-center">
+        <p className="mb-4">Se encontraron {productData.totalProducts} productos, pero ninguno tiene una imagen principal válida o accesible en este momento.</p>
+        <p className="text-sm text-gray-500">Por favor, verifica las URLs de las imágenes de los productos.</p>
+      </div>
     );
   }
 
@@ -97,10 +98,6 @@ export default async function ProductsPage() {
         {displayableProducts.map((product: IProduct) => (
           <ProductListItem key={product._id.toString()} product={product} />
         ))}
-      </div>
-
-      <div className="mt-4 text-center text-sm text-gray-600">
-        Mostrando {displayableProducts.length} de {productData.totalProducts} productos encontrados (filtrados por imagen principal accesible).
       </div>
     </div>
   );
