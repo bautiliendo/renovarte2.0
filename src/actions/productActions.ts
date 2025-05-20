@@ -1,25 +1,9 @@
-'use server';
-import dbConnect from '@/lib/dbConnect';
-import Product, { IProduct } from '@/models/Product';
-import mongoose from 'mongoose';
-
-// --- Opción 2: Obtener todos los productos ) ---
-export async function getAllProducts(): Promise<IProduct[]> {
-    try {
-        await dbConnect();
-        const products = await Product.find({ isActive: true }).sort({ createdAt: -1 }).lean(); // Ejemplo: solo activos y ordenados
-
-        const mappedProducts = products.map(product => ({
-            ...product,
-            _id: product._id.toString(),
-        })) as IProduct[];
-        
-        return mappedProducts;
-    } catch (error) {
-        console.error('Error detallado al buscar productos:', error);
-        throw new Error('Error al buscar todos los productos.');
-    }
-}
+"use server";
+import { INTERNAL_MAIN_CATEGORIES } from "@/config/categories.config";
+import { COMBINED_CATEGORIES_MAP } from "@/config/categories.config";
+import dbConnect from "@/lib/dbConnect";
+import Product, { IProduct } from "@/models/Product";
+import mongoose from "mongoose";
 
 // Interfaz para los parámetros de búsqueda y filtro
 interface GetProductsParams {
@@ -34,10 +18,15 @@ interface GetProductsParams {
 // Nueva función para obtener productos de la base de datos con filtros y búsqueda
 export async function getProductsFromDB(
   params: GetProductsParams = {}
-): Promise<{ products: IProduct[]; totalProducts: number; totalPages: number; currentPage: number }> {
+): Promise<{
+  products: IProduct[];
+  totalProducts: number;
+  totalPages: number;
+  currentPage: number;
+}> {
   const {
     category,
-    subcategory,
+    // subcategory,
     query,
     page = 1,
     limit = 12, // O un valor por defecto que prefieras para tu grid
@@ -51,36 +40,44 @@ export async function getProductsFromDB(
       isActive: true, // Por defecto, solo productos activos
     };
 
+    // New Category Logic
     if (category) {
-      filter.category = category;
-    }
-    if (subcategory) {
-      filter.subcategory = subcategory;
+      if (category === "Otros") {
+        // For "Otros", find products NOT IN any of the internal main categories
+        filter.category = { $nin: INTERNAL_MAIN_CATEGORIES };
+      } else if (COMBINED_CATEGORIES_MAP[category] && COMBINED_CATEGORIES_MAP[category].length > 0) {
+        // For combined categories (like "Componentes y Periféricos" or "Electrodomesticos")
+        // We need to include products matching the display category name itself (if it's a DB category)
+        // AND any of its mapped internal DB categories.
+        const categoriesToSearch = new Set<string>([category, ...COMBINED_CATEGORIES_MAP[category]]);
+        filter.category = { $in: Array.from(categoriesToSearch) };
+      } else {
+        // For a direct main category not in the map (e.g., "Notebooks", "Computadoras")
+        filter.category = category;
+      }
     }
 
-    if (query && query.trim() !== '') {
-      const searchRegex = new RegExp(query.trim(), 'i'); // 'i' para case-insensitive
+    // if (subcategory) {
+    //   filter.subcategory = subcategory;
+    // }
+
+    if (query && query.trim() !== "") {
+      const searchRegex = new RegExp(query.trim(), "i"); // 'i' para case-insensitive
       filter.$or = [
         { item_desc_0: { $regex: searchRegex } },
         { marca: { $regex: searchRegex } },
         { codigo: { $regex: searchRegex } },
         { partNumber: { $regex: searchRegex } },
         { category: { $regex: searchRegex } },
-        { subcategory: { $regex: searchRegex } },
-        // Considera añadir más campos a la búsqueda si es relevante
+        // { subcategory: { $regex: searchRegex } },
       ];
-      // Si configuras un índice de texto en tu modelo ProductSchema (ej: ProductSchema.index({ item_desc_0: 'text', marca: 'text' ...}) )
-      // podrías usar una búsqueda de texto más optimizada:
-      // filter.$text = { $search: query.trim() };
-      // Y el sort podría ser por relevancia: .sort({ score: { $meta: "textScore" } })
     }
-    
+
     const skip = (page - 1) * limit;
 
-    // Ejecutar la consulta de productos y la de conteo en paralelo
     const [productsFromDB, totalProducts] = await Promise.all([
       Product.find(filter)
-        .sort({ createdAt: -1 }) // Ejemplo: ordenar por más nuevos primero (o por relevancia si usas $text)
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean()
@@ -88,8 +85,7 @@ export async function getProductsFromDB(
       Product.countDocuments(filter).exec(),
     ]);
 
-    // Mapear para asegurar que _id es string
-    const products = productsFromDB.map(product => ({
+    const products = productsFromDB.map((product) => ({
       ...product,
       _id: product._id.toString(),
     })) as IProduct[];
@@ -102,15 +98,40 @@ export async function getProductsFromDB(
       totalPages,
       currentPage: page,
     };
-
   } catch (error) {
-    console.error('Error fetching products from DB:', error);
-    throw new Error('Error al buscar productos en la base de datos.');
+    console.error("Error fetching products from DB:", error);
+    throw new Error("Error al buscar productos en la base de datos.");
+  }
+}
+
+// Function to get specific featured products
+export async function getFeaturedProducts(): Promise<IProduct[]> {
+  try {
+    await dbConnect();
+
+    const featuredDescriptions = [
+      "NOTEBOOK LENOVO IP SLIM 3 15IAH8 I5-12450H 8GB 512SSD 156 FHD W11H (83ER0022AR) ARCTIC GREY",
+      "TV LED 4K 43 PHILIPS 43PUD740877 - UHD SMART NETFLIX USB HDMI",
+      "CELULAR XIAOMI REDMI NOTE 13 256GB-8GB MIDNIGHT BLACK DUAL NANO SIM (MZB0GA1AR)",
+    ];
+
+    const products = await Product.find({
+      item_desc_0: { $in: featuredDescriptions },
+      isActive: true,
+    }).lean();
+
+    return products.map((product) => ({
+      ...product,
+      _id: product._id.toString(),
+    })) as IProduct[];
+  } catch (error) {
+    console.error("Error fetching featured products:", error);
+    throw new Error("Error al buscar productos destacados.");
   }
 }
 
 // URL del endpoint de autenticación
-const authUrl = 'https://api.gruponucleosa.com/Authentication/Login';
+const authUrl = "https://api.gruponucleosa.com/Authentication/Login";
 
 // Tipado para las credenciales esperadas
 interface ApiCredentials {
@@ -127,37 +148,41 @@ export async function getAuthToken(): Promise<string | null> {
 
   // Validar que las variables de entorno necesarias existen
   if (!idString || !username || !password) {
-    console.error('Error: Faltan variables de entorno para la autenticación (GRUPO_NUCLEO_ID, GRUPO_NUCLEO_USERNAME, GRUPO_NUCLEO_PASSWORD)');
+    console.error(
+      "Error: Faltan variables de entorno para la autenticación (GRUPO_NUCLEO_ID, GRUPO_NUCLEO_USERNAME, GRUPO_NUCLEO_PASSWORD)"
+    );
     return null;
   }
 
   // Convertir ID a número
   const id = parseInt(idString, 10);
   if (isNaN(id)) {
-    console.error('Error: GRUPO_NUCLEO_ID no es un número válido.');
+    console.error("Error: GRUPO_NUCLEO_ID no es un número válido.");
     return null;
   }
 
   const credentials: ApiCredentials = {
     id,
     username,
-    password
+    password,
   };
 
   try {
     const response = await fetch(authUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Accept': '*/*',
-        'Content-Type': 'application/json'
+        Accept: "*/*",
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(credentials) // Convierte el objeto a JSON string
+      body: JSON.stringify(credentials), // Convierte el objeto a JSON string
     });
 
     // Verificar si la respuesta de la red fue exitosa
     if (!response.ok) {
-      const errorBody = await response.text(); 
-      console.error(`Error en la solicitud de autenticación: ${response.status} ${response.statusText}`);
+      const errorBody = await response.text();
+      console.error(
+        `Error en la solicitud de autenticación: ${response.status} ${response.statusText}`
+      );
       console.error(`Respuesta del servidor: ${errorBody}`);
       return null;
     }
@@ -165,22 +190,25 @@ export async function getAuthToken(): Promise<string | null> {
     const accessToken = await response.text();
 
     return accessToken;
-
   } catch (error) {
-    console.error("Error durante la obtención del token de autenticación:", error);
-    return null; 
+    console.error(
+      "Error durante la obtención del token de autenticación:",
+      error
+    );
+    return null;
   }
 }
 
 // Interfaz actualizada según el ejemplo de respuesta de la API
-export interface ProductApi { // Renombrada para evitar conflicto con el modelo Product
+export interface ProductApi {
+  // Renombrada para evitar conflicto con el modelo Product
   item_id: number;
   codigo: string;
   ean: string;
   partNumber: string;
   item_desc_0: string;
-  item_desc_1?: string; 
-  item_desc_2?: string; 
+  item_desc_1?: string;
+  item_desc_2?: string;
   marca: string;
   categoria: string;
   subcategoria: string;
@@ -196,26 +224,27 @@ export interface ProductApi { // Renombrada para evitar conflicto con el modelo 
   url_imagenes: { url: string }[];
 }
 
-const CATALOG_URL = 'https://api.gruponucleosa.com/API_V1/GetCatalog';
+const CATALOG_URL = "https://api.gruponucleosa.com/API_V1/GetCatalog";
 
 // Server Action para obtener el catálogo de productos DE LA API EXTERNA
 export async function getCatalog(): Promise<ProductApi[] | null> {
-
   // 1. Obtener el token de autenticación
   const token = await getAuthToken();
 
   if (!token) {
-    console.error('No se pudo obtener el token para la solicitud del catálogo.');
+    console.error(
+      "No se pudo obtener el token para la solicitud del catálogo."
+    );
     return null;
   }
 
   try {
     // 2. Realizar la solicitud GET al catálogo con el token
     const response = await fetch(CATALOG_URL, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Accept': '*/*',
-        'Authorization': `Bearer ${token}`
+        Accept: "*/*",
+        Authorization: `Bearer ${token}`,
       },
       // cache: 'no-store' // Descomentar si quieres forzar explícitamente que no se cachee
     });
@@ -223,7 +252,9 @@ export async function getCatalog(): Promise<ProductApi[] | null> {
     // 3. Verificar si la respuesta fue exitosa
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`Error al obtener el catálogo: ${response.status} ${response.statusText}`);
+      console.error(
+        `Error al obtener el catálogo: ${response.status} ${response.statusText}`
+      );
       console.error(`Respuesta del servidor: ${errorBody}`);
       return null;
     }
@@ -232,9 +263,8 @@ export async function getCatalog(): Promise<ProductApi[] | null> {
     const data: ProductApi[] = await response.json(); // Asume que la respuesta es un array de productos
 
     return data;
-
   } catch (error) {
-    console.error('Error durante la obtención del catálogo:', error);
+    console.error("Error durante la obtención del catálogo:", error);
     return null;
   }
 }
@@ -242,7 +272,7 @@ export async function getCatalog(): Promise<ProductApi[] | null> {
 // Interface para detallar los errores durante la sincronización
 interface ErrorInfo {
   context?: string; // e.g., "Product ID: 12345" or "General Sync"
-  message: string;   // El mensaje de error
+  message: string; // El mensaje de error
 }
 
 // Nueva Server Action para sincronizar productos desde la API externa a MongoDB
@@ -254,7 +284,7 @@ export async function syncProductsFromApi(): Promise<{
   updatedCount: number;
   errors: ErrorInfo[]; // Usar el tipo específico aquí
 }> {
-  console.log('Iniciando sincronización de productos desde la API externa...');
+  console.log("Iniciando sincronización de productos desde la API externa...");
   await dbConnect();
 
   let processedCount = 0;
@@ -267,24 +297,35 @@ export async function syncProductsFromApi(): Promise<{
     const apiProducts: ProductApi[] | null = await getCatalog();
 
     if (!apiProducts) {
-      console.error('Error en la sincronización: No se pudieron obtener productos de la API.');
+      console.error(
+        "Error en la sincronización: No se pudieron obtener productos de la API."
+      );
       return {
         success: false,
-        message: 'Error al obtener productos de la API externa.',
-        processedCount, createdCount, updatedCount, errors
+        message: "Error al obtener productos de la API externa.",
+        processedCount,
+        createdCount,
+        updatedCount,
+        errors,
       };
     }
 
     if (apiProducts.length === 0) {
-      console.log('Sincronización: La API externa no devolvió productos.');
+      console.log("Sincronización: La API externa no devolvió productos.");
       return {
         success: true,
-        message: 'La API externa no devolvió productos. No hay nada que sincronizar.',
-        processedCount, createdCount, updatedCount, errors
+        message:
+          "La API externa no devolvió productos. No hay nada que sincronizar.",
+        processedCount,
+        createdCount,
+        updatedCount,
+        errors,
       };
     }
 
-    console.log(`Sincronización: Se obtuvieron ${apiProducts.length} productos de la API.`);
+    console.log(
+      `Sincronización: Se obtuvieron ${apiProducts.length} productos de la API.`
+    );
 
     // 2. Iterar sobre los productos de la API y sincronizarlos con MongoDB
     for (const apiProduct of apiProducts) {
@@ -294,7 +335,7 @@ export async function syncProductsFromApi(): Promise<{
         // Asegúrate de que los campos coincidan con tu ProductSchema
         const productToStore: Partial<IProduct> = {
           api_item_id: apiProduct.item_id,
-          source: 'api',
+          source: "api",
           codigo: apiProduct.codigo,
           ean: apiProduct.ean,
           partNumber: apiProduct.partNumber,
@@ -310,10 +351,15 @@ export async function syncProductsFromApi(): Promise<{
           largo_cm: apiProduct.largo_cm,
           volumen_cm3: apiProduct.volumen_cm3,
           precioNeto_USD: apiProduct.precioNeto_USD,
-          impuestos: apiProduct.impuestos?.map(imp => ({ imp_desc: imp.imp_desc, imp_porcentaje: imp.imp_porcentaje })),
+          impuestos: apiProduct.impuestos?.map((imp) => ({
+            imp_desc: imp.imp_desc,
+            imp_porcentaje: imp.imp_porcentaje,
+          })),
           stock_mdp: apiProduct.stock_mdp,
           stock_caba: apiProduct.stock_caba,
-          url_imagenes: apiProduct.url_imagenes?.map(img => ({ url: img.url })),
+          url_imagenes: apiProduct.url_imagenes?.map((img) => ({
+            url: img.url,
+          })),
           isActive: true, // Por defecto, los productos de la API se marcan como activos
           // description: apiProduct.item_desc_0, // O alguna otra descripción si quieres
         };
@@ -322,27 +368,37 @@ export async function syncProductsFromApi(): Promise<{
         // 'upsert' significa: si el documento con el filtro existe, actualízalo; si no, créalo.
         const result = await Product.updateOne(
           { api_item_id: apiProduct.item_id }, // Filtro para encontrar el producto
-          { $set: productToStore },            // Datos para establecer/actualizar
-          { upsert: true }                      // Opción de upsert
+          { $set: productToStore }, // Datos para establecer/actualizar
+          { upsert: true } // Opción de upsert
         );
 
         if (result.upsertedCount > 0) {
           createdCount++;
-          console.log(`Sincronización: Producto CREADO con api_item_id: ${apiProduct.item_id}`);
+          console.log(
+            `Sincronización: Producto CREADO con api_item_id: ${apiProduct.item_id}`
+          );
         } else if (result.modifiedCount > 0) {
           updatedCount++;
-          console.log(`Sincronización: Producto ACTUALIZADO con api_item_id: ${apiProduct.item_id}`);
+          console.log(
+            `Sincronización: Producto ACTUALIZADO con api_item_id: ${apiProduct.item_id}`
+          );
         } else if (result.matchedCount > 0) {
-           // Coincidió pero no se modificó (los datos eran idénticos)
-           console.log(`Sincronización: Producto con api_item_id: ${apiProduct.item_id} ya estaba actualizado.`);
+          // Coincidió pero no se modificó (los datos eran idénticos)
+          console.log(
+            `Sincronización: Producto con api_item_id: ${apiProduct.item_id} ya estaba actualizado.`
+          );
         }
-
-
       } catch (productError) {
-        console.error(`Sincronización: Error procesando producto con api_item_id: ${apiProduct.item_id}`, productError);
+        console.error(
+          `Sincronización: Error procesando producto con api_item_id: ${apiProduct.item_id}`,
+          productError
+        );
         errors.push({
           context: `Product api_item_id: ${apiProduct.item_id}`,
-          message: productError instanceof Error ? productError.message : String(productError)
+          message:
+            productError instanceof Error
+              ? productError.message
+              : String(productError),
         });
       }
     }
@@ -355,48 +411,25 @@ export async function syncProductsFromApi(): Promise<{
       processedCount,
       createdCount,
       updatedCount,
-      errors
+      errors,
     };
-
   } catch (error) {
-    console.error('Error general durante la sincronización de productos:', error);
+    console.error(
+      "Error general durante la sincronización de productos:",
+      error
+    );
     errors.push({
-      context: 'General Synchronization Error',
-      message: error instanceof Error ? error.message : String(error)
+      context: "General Synchronization Error",
+      message: error instanceof Error ? error.message : String(error),
     });
     return {
       success: false,
-      message: 'Error general durante la sincronización.',
+      message: "Error general durante la sincronización.",
       processedCount,
       createdCount,
       updatedCount,
-      errors
+      errors,
     };
   }
 }
 
-// Function to get specific featured products
-export async function getFeaturedProducts(): Promise<IProduct[]> {
-  try {
-    await dbConnect();
-    
-    const featuredDescriptions = [
-      "NOTEBOOK LENOVO IP SLIM 3 15IAH8 I5-12450H 8GB 512SSD 156 FHD W11H (83ER0022AR) ARCTIC GREY",
-      "TV LED 4K 43 PHILIPS 43PUD740877 - UHD SMART NETFLIX USB HDMI",
-      "CELULAR XIAOMI REDMI NOTE 13 256GB-8GB MIDNIGHT BLACK DUAL NANO SIM (MZB0GA1AR)"
-    ];
-
-    const products = await Product.find({
-      item_desc_0: { $in: featuredDescriptions },
-      isActive: true
-    }).lean();
-
-    return products.map(product => ({
-      ...product,
-      _id: product._id.toString(),
-    })) as IProduct[];
-  } catch (error) {
-    console.error('Error fetching featured products:', error);
-    throw new Error('Error al buscar productos destacados.');
-  }
-}

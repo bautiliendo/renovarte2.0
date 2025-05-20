@@ -1,8 +1,6 @@
-'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
 import type { IProduct } from '@/models/Product';
 import { slugify } from '@/utils/slungify';
 import { ArrowRight } from 'lucide-react';
@@ -14,11 +12,7 @@ interface ProductListItemProps {
 export default function ProductListItem({ product }: ProductListItemProps) {
   const imageUrl = product.url_imagenes?.[0]?.url;
   const productSlug = slugify(product.item_desc_0);
-  const [imageError, setImageError] = useState(false);
 
-  const handleImageError = () => {
-    setImageError(true);
-  };
 
   return (
     <li
@@ -27,7 +21,7 @@ export default function ProductListItem({ product }: ProductListItemProps) {
     >
       <Link href={`/products/${productSlug}`} className="flex flex-col h-full">
         <div className="relative w-full pt-[100%] bg-gray-100">
-          {imageUrl && !imageError ? (
+          {imageUrl ? (
             <Image
               src={imageUrl}
               alt={product.item_desc_0 || 'Imagen del producto'}
@@ -35,7 +29,6 @@ export default function ProductListItem({ product }: ProductListItemProps) {
               className="object-contain p-[10px]"
               sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
               priority={false}
-              onError={handleImageError}
             />
           ) : (
             <div className="absolute inset-0 flex h-full w-full items-center justify-center">
