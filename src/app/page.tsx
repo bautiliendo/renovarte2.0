@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowRight, ShoppingCart } from "lucide-react"
 import { redirect } from "next/navigation"
 import { ReactTyped } from "react-typed"
-import FeaturedProducts from "@/components/FeaturedProducts"
+import Image from "next/image"
 
 export default function Home() {
 
@@ -51,7 +51,9 @@ export default function Home() {
               </Button>
             </div>
           </div>
-          <FeaturedProducts />
+          <div className="flex justify-center items-center border-2 border-gray-700 rounded-lg">
+            <Image src="/promocion.png" alt="Banner" width={1000} height={1000} />
+          </div>
         </div>
       </div>
     </section>

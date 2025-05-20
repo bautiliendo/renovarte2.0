@@ -55,15 +55,6 @@ export default async function ProductsPage({
       );
     }
 
-    if (productData.products.length === 0) {
-      console.log("ProductsPage: No se encontraron productos en la DB.");
-      return (
-        <div className="p-4 text-center">
-          <h1>Catálogo Vacío</h1>
-          <p>No se encontraron productos en la base de datos.</p>
-        </div>
-      );
-    }
 
   } catch (error) {
     console.error("ProductsPage: Error general al obtener productos:", error);
@@ -72,16 +63,6 @@ export default async function ProductsPage({
         <h1>Error de Conexión</h1>
         <p>Ocurrió un error al intentar conectar con la base de datos o al procesar los productos.</p>
         <pre>{error instanceof Error ? error.message : JSON.stringify(error)}</pre>
-      </div>
-    );
-  }
-
-  // If productData is null after try-catch (e.g. initial state or unhandled error path)
-  if (!productData) {
-    return (
-      <div className="p-4">
-        <h1>Error Inesperado</h1>
-        <p>No se pudieron cargar los datos de los productos.</p>
       </div>
     );
   }

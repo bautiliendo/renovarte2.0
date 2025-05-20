@@ -45,11 +45,17 @@ export async function getProductsFromDB(
       if (category === "Otros") {
         // For "Otros", find products NOT IN any of the internal main categories
         filter.category = { $nin: INTERNAL_MAIN_CATEGORIES };
-      } else if (COMBINED_CATEGORIES_MAP[category] && COMBINED_CATEGORIES_MAP[category].length > 0) {
+      } else if (
+        COMBINED_CATEGORIES_MAP[category] &&
+        COMBINED_CATEGORIES_MAP[category].length > 0
+      ) {
         // For combined categories (like "Componentes y Periféricos" or "Electrodomesticos")
         // We need to include products matching the display category name itself (if it's a DB category)
         // AND any of its mapped internal DB categories.
-        const categoriesToSearch = new Set<string>([category, ...COMBINED_CATEGORIES_MAP[category]]);
+        const categoriesToSearch = new Set<string>([
+          category,
+          ...COMBINED_CATEGORIES_MAP[category],
+        ]);
         filter.category = { $in: Array.from(categoriesToSearch) };
       } else {
         // For a direct main category not in the map (e.g., "Notebooks", "Computadoras")
@@ -104,29 +110,36 @@ export async function getProductsFromDB(
   }
 }
 
-// Function to get specific featured products
-export async function getFeaturedProducts(): Promise<IProduct[]> {
+export async function getProductById(id: string): Promise<IProduct | null> {
   try {
     await dbConnect();
 
-    const featuredDescriptions = [
-      "NOTEBOOK LENOVO IP SLIM 3 15IAH8 I5-12450H 8GB 512SSD 156 FHD W11H (83ER0022AR) ARCTIC GREY",
-      "TV LED 4K 43 PHILIPS 43PUD740877 - UHD SMART NETFLIX USB HDMI",
-      "CELULAR XIAOMI REDMI NOTE 13 256GB-8GB MIDNIGHT BLACK DUAL NANO SIM (MZB0GA1AR)",
-    ];
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.warn(`getProductById: Invalid ID format: ${id}`);
+      return null;
+    }
 
-    const products = await Product.find({
-      item_desc_0: { $in: featuredDescriptions },
-      isActive: true,
-    }).lean();
+    const product = await Product.findById(id).lean().exec();
 
-    return products.map((product) => ({
+    if (!product) {
+      return null;
+    }
+
+    // Asegurarse de que _id es un string, y otros campos necesarios como url_imagenes
+    return {
       ...product,
       _id: product._id.toString(),
-    })) as IProduct[];
+      // Mapear otros campos si es necesario para consistencia con IProduct
+      // Por ejemplo, si lean() no transforma ObjectId en nested arrays/objects
+      url_imagenes: product.url_imagenes
+        ? product.url_imagenes.map((img) => ({ url: img.url }))
+        : [],
+    } as IProduct;
   } catch (error) {
-    console.error("Error fetching featured products:", error);
-    throw new Error("Error al buscar productos destacados.");
+    console.error(`Error fetching product by ID (${id}):`, error);
+    // No lanzar el error directamente para que la página pueda manejar el caso de producto no encontrado.
+    // Podrías lanzar un error si prefieres que Next.js maneje esto con una error.tsx boundary.
+    return null;
   }
 }
 
@@ -432,4 +445,3 @@ export async function syncProductsFromApi(): Promise<{
     };
   }
 }
-
