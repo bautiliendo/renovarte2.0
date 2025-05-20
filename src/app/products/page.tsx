@@ -7,11 +7,17 @@ import CategoryFilter from '@/components/CategoryFilter';
 
 export const revalidate = 3600; // Revalidar la página cada hora
 
+interface ProductsPageProps {
+  searchParams: Promise<{
+    category?: string;
+    page?: string
+  }>;
+}
+
 export default async function ProductsPage({
   searchParams,
-}: {
-  searchParams: { category?: string; page?: string };
-}) {
+}: ProductsPageProps) {
+
   const parametros = await searchParams;
 
   const selectedCategory = parametros?.category;
