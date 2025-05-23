@@ -9,7 +9,7 @@ interface CategoryFilterProps {
     basePath: string; // e.g., "/products"
 }
 
-const MAX_VISIBLE_CATEGORIES = 5;
+const MAX_VISIBLE_CATEGORIES = 8;
 
 export default function CategoryFilter({
     allCategories,
@@ -29,13 +29,13 @@ export default function CategoryFilter({
         <div className="my-4">
             <div className="flex mx-auto justify-center flex-wrap items-center gap-2">
                 {/* Link "Todas" */}
-                <Link
+                {/* <Link
                     href={basePath}
                     className={`${commonLinkClasses} ${!selectedCategory ? activeLinkClasses : inactiveLinkClasses
                         }`}
                 >
                     Todos los productos
-                </Link>
+                </Link> */}
 
                 {/* Categorías Visibles */}
                 {visibleCategories.map((cat) => (

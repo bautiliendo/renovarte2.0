@@ -18,14 +18,23 @@ export default async function ProductsPage({
   searchParams,
 }: ProductsPageProps) {
 
-  const parametros = await searchParams;
+  const params = await searchParams;
 
-  const selectedCategory = parametros?.category;
-  const currentPage = Number(parametros?.page) || 1;
+  const categoryFromUrl = params?.category;
+  const currentPage = Number(params?.page) || 1;
   const productsPerPage = 12;
 
+  // Determine the default category from the configuration
+  const defaultCategoryFromConfig = DISPLAY_CATEGORIES_FOR_UI.length > 0 ? DISPLAY_CATEGORIES_FOR_UI[0] : undefined;
+
+  // Determine the category to use for fetching data and for the main title
+  const categoryForDataFetching = categoryFromUrl || defaultCategoryFromConfig;
+  // Determine the category string for the H1 title, with a final fallback
+  const categoryForTitle = categoryFromUrl || defaultCategoryFromConfig || "Productos";
+
+
   console.log(
-    `ProductsPage: Fetching products. Category: ${selectedCategory}, Page: ${currentPage}`
+    `ProductsPage: Fetching products. Category: ${categoryForDataFetching || 'all (if default is undefined)'}, Page: ${currentPage}`
   );
 
 
@@ -38,7 +47,7 @@ export default async function ProductsPage({
 
   try {
     productData = await getProductsFromDB({
-      category: selectedCategory,
+      category: categoryForDataFetching, // Use the determined category for fetching
       page: currentPage,
       limit: productsPerPage,
     });
@@ -67,21 +76,21 @@ export default async function ProductsPage({
     );
   }
 
-  // If no products found for the given filters
-  if (productData.products.length === 0 && productData.totalProducts === 0 && selectedCategory) {
+  // If no products found for the given filters (specifically when a category was in the URL)
+  if (productData.products.length === 0 && productData.totalProducts === 0 && categoryFromUrl) {
     return (
       <div className="p-4">
         <h1 className="mb-4 text-2xl font-semibold">
-          Catálogo: {selectedCategory || "Todos los Productos"}
+          Catálogo: {categoryForTitle} {/* Use consistent title */}
         </h1>
         {/* Category Links */}
         <CategoryFilter
           allCategories={DISPLAY_CATEGORIES_FOR_UI}
-          selectedCategory={selectedCategory}
+          selectedCategory={categoryFromUrl}
           basePath="/products"
         />
         <p className="text-center">
-          No se encontraron productos en la categoría &quot;{selectedCategory}&quot;.
+          No se encontraron productos en la categoría &quot;{categoryFromUrl}&quot;. {/* Message uses specific URL category */}
         </p>
       </div>
     );
@@ -94,11 +103,11 @@ export default async function ProductsPage({
       {/* Category Links */}
       <CategoryFilter
         allCategories={DISPLAY_CATEGORIES_FOR_UI}
-        selectedCategory={selectedCategory}
+        selectedCategory={categoryFromUrl} 
         basePath="/products"
       />
       <h1 className="mb-4 text-2xl font-semibold">
-        Catálogo: {selectedCategory || "Todos los Productos"}
+        Catálogo: {categoryForTitle} {/* Use consistent title */}
       </h1>
 
       {productData.products.length > 0 ? (
@@ -117,7 +126,7 @@ export default async function ProductsPage({
       {productData.totalPages > 1 && (
         <div className="mt-8 flex justify-center items-center space-x-2">
           {currentPage > 1 && (
-            <Link href={`/products?${selectedCategory ? `category=${encodeURIComponent(selectedCategory)}&` : ''}page=${currentPage - 1}`} className="px-4 py-2 border rounded hover:bg-gray-100">
+            <Link href={`/products?${categoryFromUrl ? `category=${encodeURIComponent(categoryFromUrl)}&` : ''}page=${currentPage - 1}`} className="px-4 py-2 border rounded hover:border-gray-400 transition-all duration-300">
               Anterior
             </Link>
           )}
@@ -125,7 +134,7 @@ export default async function ProductsPage({
             Página {productData.currentPage} de {productData.totalPages}
           </span>
           {currentPage < productData.totalPages && (
-            <Link href={`/products?${selectedCategory ? `category=${encodeURIComponent(selectedCategory)}&` : ''}page=${currentPage + 1}`} className="px-4 py-2 border rounded hover:bg-gray-100">
+            <Link href={`/products?${categoryFromUrl ? `category=${encodeURIComponent(categoryFromUrl)}&` : ''}page=${currentPage + 1}`} className="px-4 py-2 border rounded hover:border-gray-400 transition-all duration-300">
               Siguiente
             </Link>
           )}
