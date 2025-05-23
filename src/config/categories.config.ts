@@ -1,35 +1,26 @@
 // User-facing display names for the main categories.
 // These are what users will click on.
 export const DISPLAY_MAIN_CATEGORIES: string[] = [
+  "Celulares Libres",
   "Notebooks",
   "Computadoras",
-  "Celulares Libres",
   "Television",
-  "Tabletas",
+  "Tablets",
   "Electrodomesticos",
   "Climatizacion",
-  "Componentes y Accesorios",
-  "Movilidad Urbana",
-  "Accesorios para Celular",
-  "Informatica Accesorios",
   "Bazar",
-  "Muebles y Sillas",
 ];
-
-// This maps a display category to the actual database category names it groups.
-// If a display category also directly matches a database category name,
-// it will be handled correctly by getAllInternalMainCategories.
 export const COMBINED_CATEGORIES_MAP: { [displayCategory: string]: string[] } =
   {
     "Informatica Accesorios": ["Impresoras y Scanner"],
     Computadoras: ["Monitores"],
-    "Componentes y Accesorios": ["Componentes", "Accesorios Gamer"],
     Electrodomesticos: [
       "Lavado y Secado",
       "Refrigeracion",
       "Termotanques y Calefones",
       "Coccion",
     ],
+    Tablets: ["Tabletas"],
   };
 
 // Helper to get all unique *internal* database category names that are considered "main".
@@ -59,5 +50,5 @@ export const INTERNAL_MAIN_CATEGORIES: string[] =
 
 // Final list for UI: combines main display categories and "Otros"
 export const DISPLAY_CATEGORIES_FOR_UI: string[] = [
-  ...new Set([...DISPLAY_MAIN_CATEGORIES, "Otros"]),
+  ...new Set([...DISPLAY_MAIN_CATEGORIES]),
 ];
