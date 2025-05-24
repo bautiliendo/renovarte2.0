@@ -1,7 +1,11 @@
-import { syncProductsFromApi } from '@/actions/productActions';
-import { NextResponse } from 'next/server';
+import { syncProductsFromApi } from "@/actions/apiActions";
+import { NextResponse, NextRequest } from "next/server";
 
-export async function GET() { // O POST si prefieres y lo proteges adecuadamente
+export async function GET(req: NextRequest) { // O POST si prefieres y lo proteges adecuadamente
+  if (req.headers.get('Authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+    console.log('/api/sync-products: Unauthorized access attempt.');
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
   console.log('/api/sync-products: Recibida solicitud de sincronización.');
   try {
     const result = await syncProductsFromApi();
