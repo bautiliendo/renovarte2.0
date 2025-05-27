@@ -80,8 +80,8 @@ export default async function ProductsPage({
   if (productData.products.length === 0 && productData.totalProducts === 0 && categoryFromUrl) {
     return (
       <div className="p-4">
-        <h1 className="mb-4 text-2xl font-semibold">
-          Catálogo: {categoryForTitle} {/* Use consistent title */}
+        <h1 className="mb-4 text-xl font-semibold">
+          Categoría: {categoryForTitle} {/* Use consistent title */}
         </h1>
         {/* Category Links */}
         <CategoryFilter
@@ -100,14 +100,14 @@ export default async function ProductsPage({
   return (
     <div className="p-4">
 
-      {/* Category Links */}
+      {/* Category Links
       <CategoryFilter
         allCategories={DISPLAY_CATEGORIES_FOR_UI}
         selectedCategory={categoryFromUrl} 
         basePath="/products"
-      />
-      <h1 className="mb-4 text-2xl font-semibold">
-        Catálogo: {categoryForTitle} {/* Use consistent title */}
+      /> */}
+      <h1 className="mb-4 text-xl font-semibold">
+        Categoría: {categoryForTitle} {/* Use consistent title */}
       </h1>
 
       {productData.products.length > 0 ? (

@@ -6,6 +6,8 @@ import "./globals.css"
 import { Navbar } from "@/components/common/Navbar"
 import Footer from "@/components/common/Footer"
 import Container from "@/components/ui/Container"
+import CategoryFilter from "@/components/CategoryFilter"
+import { DISPLAY_CATEGORIES_FOR_UI } from '@/config/categories.config'
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -30,6 +32,10 @@ export default function RootLayout({
             <div className="absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-emerald-500/20 blur-[120px]" />
           </div>
           <Navbar />
+          <CategoryFilter
+            allCategories={DISPLAY_CATEGORIES_FOR_UI}
+            basePath="/products"
+          />
           <main className="relative">
             <Container>
               {children}
