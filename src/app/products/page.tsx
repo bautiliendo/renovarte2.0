@@ -1,6 +1,6 @@
 import { getProductsFromDB } from '@/actions/productActions';
 import ProductListItem from '@/components/ProductListItem';
-import { DISPLAY_CATEGORIES_FOR_UI } from '@/config/categories.config';
+import { DISPLAY_MAIN_CATEGORIES } from '@/config/categories.config';
 import { IProduct } from '@/models/Product';
 import { Pagination } from '@/components/Pagination';
 
@@ -23,7 +23,7 @@ export default async function ProductsPage({
   const productsPerPage = 12;
 
   // Determine the default category from the configuration
-  const defaultCategoryFromConfig = DISPLAY_CATEGORIES_FOR_UI[0];
+  const defaultCategoryFromConfig = DISPLAY_MAIN_CATEGORIES[0];
   // Determine the category to use for fetching data and for the main title
   const categoryForDataFetching = categoryFromUrl || defaultCategoryFromConfig;
   // Determine the category string for the H1 title, with a final fallback

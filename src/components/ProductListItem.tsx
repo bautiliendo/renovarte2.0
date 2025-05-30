@@ -36,6 +36,9 @@ export default function ProductListItem({ product }: ProductListItemProps) {
           </p><p className="my-1 text-sm text-gray-600">
             <strong>Categoria:</strong> {product.category}
           </p>
+          <p className="my-1 text-sm text-gray-600">
+            <strong>Subcategoria:</strong> {product.subcategory}
+          </p>
           <div className="inline-flex items-center text-sm font-medium text-emerald-400 hover:text-emerald-300">
             Ver detalles
             <ArrowRight className="ml-1 h-4 w-4 " />
