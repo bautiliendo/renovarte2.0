@@ -9,7 +9,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
   
-  
   try {
     const result = await syncProductsFromApi();
     if (result.success) {

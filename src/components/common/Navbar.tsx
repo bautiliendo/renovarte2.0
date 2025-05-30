@@ -61,17 +61,6 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Mobile: Cart */}
-        {/* <div className="flex items-center md:hidden">
-          <Button
-            variant="ghost"
-            className="p-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-          >
-            <ShoppingCart className="h-5 w-5 mr-1" />
-            <span className="text-sm font-medium">Cart</span>
-          </Button>
-        </div> */}
-
         {/* Searchbar */}
         <div className="w-full md:w-auto mb-2 md:mb-0 md:ml-6">
           <div className="relative">
@@ -93,10 +82,6 @@ export function Navbar() {
               Empresa
             </Link>
           </nav>
-          {/* <Button variant="outline">
-            <ShoppingCart className="h-4 w-4 mr-2" />
-            Cart
-          </Button> */}
         </div>
       </div>
     </header>

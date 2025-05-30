@@ -147,7 +147,7 @@ interface ErrorInfo {
   message: string; // El mensaje de error
 }
 
-// Nueva Server Action para sincronizar productos desde la API externa a MongoDB
+//  Server Action para sincronizar productos desde la API externa a MongoDB
 export async function syncProductsFromApi(): Promise<{
   success: boolean;
   message: string;
@@ -188,7 +188,6 @@ export async function syncProductsFromApi(): Promise<{
       `Sincronización: Se obtuvieron ${apiProductsFromCatalog.length} productos de la API.`
     );
 
-    // Filtrar productos por categorías relevantes
     const relevantApiProducts = apiProductsFromCatalog.filter(p =>
       INTERNAL_MAIN_CATEGORIES.includes(p.categoria)
     );
@@ -197,34 +196,41 @@ export async function syncProductsFromApi(): Promise<{
       `Sincronización: Después de filtrar por categorías relevantes, ${relevantApiProducts.length} productos de ${apiProductsFromCatalog.length} serán procesados.`
     );
 
-
     if (relevantApiProducts.length === 0 && apiProductsFromCatalog.length > 0) {
       console.log("Sincronización: Ninguno de los productos obtenidos de la API pertenece a las categorías relevantes configuradas. Se procederá a verificar si hay productos locales para eliminar según este filtro.");
     } else if (relevantApiProducts.length === 0) {
       console.log("Sincronización: La API externa no devolvió productos o ninguno pertenece a categorías relevantes. Se procederá a verificar si hay productos locales para eliminar.");
     }
 
-
     const apiProductIds = new Set(relevantApiProducts.map(p => p.item_id));
+    const bulkUpdateOps: import("mongoose").AnyBulkWriteOperation<IProduct>[] = [];
 
     for (const apiProduct of relevantApiProducts) {
       processedCount++;
       try {
         const validImageUrls: { url: string }[] = [];
         if (apiProduct.url_imagenes && apiProduct.url_imagenes.length > 0) {
-          // Sequentially validate images to avoid overwhelming the network or target server
-          for (const img of apiProduct.url_imagenes) {
-            if (await isValidImageUrl(img.url)) {
-              validImageUrls.push(img);
+          const imageValidationPromises = apiProduct.url_imagenes.map(async (img) => {
+            const isValid = await isValidImageUrl(img.url);
+            return { url: img.url, isValid };
+          });
+          const validationResults = await Promise.allSettled(imageValidationPromises);
+
+          validationResults.forEach(result => {
+            if (result.status === 'fulfilled' && result.value.isValid) {
+              validImageUrls.push({ url: result.value.url });
             } else {
-              console.log(`Sincronización: URL de imagen inválida o no accesible para producto ${apiProduct.item_id}: ${img.url}`);
-              // Optional: Add to errors array if you want to report these per-image failures
-              // errors.push({
-              //   context: `Product api_item_id: ${apiProduct.item_id}, Image URL: ${img.url}`,
-              //   message: "Invalid or inaccessible image URL",
-              // });
+              let failedUrlDetail = 'unknown_url (error during validation)';
+              let errorMessage = 'Image validation failed or an error occurred.';
+              if (result.status === 'fulfilled' && !result.value.isValid) {
+                failedUrlDetail = result.value.url;
+                errorMessage = 'Image reported as invalid by isValidImageUrl.';
+              } else if (result.status === 'rejected') {
+                errorMessage = `Error during image validation: ${result.reason}`;
+              }
+              console.log(`Sincronización: Problem with image for product ${apiProduct.item_id}. URL Hint: ${failedUrlDetail}. Message: ${errorMessage}`);
             }
-          }
+          });
         }
 
         const productToStore: Partial<IProduct> = {
@@ -251,41 +257,30 @@ export async function syncProductsFromApi(): Promise<{
           })),
           stock_mdp: apiProduct.stock_mdp,
           stock_caba: apiProduct.stock_caba,
-          url_imagenes: validImageUrls, // Use the validated list
-          isActive: validImageUrls.length > 0, // Set isActive based on valid images
+          url_imagenes: validImageUrls,
+          isActive: validImageUrls.length > 0,
         };
 
-        // If there are no valid images and the product was previously active (or we assume active by default from API)
-        // this will effectively deactivate it.
         if (validImageUrls.length === 0) {
              console.log(`Sincronización: Producto ${apiProduct.item_id} (${apiProduct.item_desc_0}) marcado como inactivo debido a la falta de imágenes válidas.`);
         }
 
+        // Preparar la operación para bulkWrite en lugar de ejecutarla inmediatamente
+        bulkUpdateOps.push({
+          updateOne: {
+            filter: { api_item_id: apiProduct.item_id, source: "api" },
+            update: { $set: productToStore },
+            upsert: true,
+          },
+        });
 
-        const result = await Product.updateOne(
-          { api_item_id: apiProduct.item_id, source: "api" },
-          { $set: productToStore },
-          { upsert: true }
-        );
-
-        if (result.upsertedCount > 0) {
-          createdCount++;
-          console.log(
-            `Sincronización: Producto CREADO con api_item_id: ${apiProduct.item_id}`
-          );
-        } else if (result.modifiedCount > 0) {
-          updatedCount++;
-          console.log(
-            `Sincronización: Producto ACTUALIZADO con api_item_id: ${apiProduct.item_id}`
-          );
-        } 
       } catch (productError) {
         console.error(
-          `Sincronización: Error procesando producto con api_item_id: ${apiProduct.item_id}`,
+          `Sincronización: Error preparando operación para producto con api_item_id: ${apiProduct.item_id}`,
           productError
         );
         errors.push({
-          context: `Product api_item_id: ${apiProduct.item_id}`,
+          context: `Preparing op for product api_item_id: ${apiProduct.item_id}`,
           message:
             productError instanceof Error
               ? productError.message
@@ -294,14 +289,31 @@ export async function syncProductsFromApi(): Promise<{
       }
     }
 
+    // Ejecutar operaciones de creación/actualización en lote
+    if (bulkUpdateOps.length > 0) {
+      try {
+        const bulkResult = await Product.bulkWrite(bulkUpdateOps, { ordered: false });
+        createdCount = bulkResult.upsertedCount;
+        updatedCount = bulkResult.modifiedCount;
+        console.log(
+          `Sincronización: BulkWrite para creación/actualización completado. Creados: ${bulkResult.upsertedCount}, Actualizados: ${bulkResult.modifiedCount}, Emparejados: ${bulkResult.matchedCount}.`
+        );
+      } catch (bulkError) {
+        console.error("Sincronización: Error durante Product.bulkWrite (creación/actualización):", bulkError);
+        errors.push({
+          context: "BulkWrite Operation (create/update)",
+          message: bulkError instanceof Error ? bulkError.message : String(bulkError),
+        });
+        // Dependiendo de la criticidad, podrías decidir si continuar o retornar error aquí
+      }
+    }
+
+    // OPERACIONES DE ELIMINACIÓN SECUENCIALES (como estaban antes)
     const localApiProductIds = await Product.find({ source: "api" }, 'api_item_id').lean();
     
     for (const localProduct of localApiProductIds) {
       if (localProduct.api_item_id && !apiProductIds.has(localProduct.api_item_id)) {
         try {
-          // Antes de eliminar, verificar si el producto local pertenece a una categoría que AHORA es irrelevante.
-          // Esta verificación es implícita: si no está en apiProductIds (que se basa en relevantApiProducts),
-          // o bien ya no viene de la API, o bien su categoría ya no es relevante.
           const deleteResult = await Product.deleteOne({ api_item_id: localProduct.api_item_id, source: "api" });
           if (deleteResult.deletedCount > 0) {
             deletedCount++;
@@ -324,17 +336,7 @@ export async function syncProductsFromApi(): Promise<{
     }
     
     if (relevantApiProducts.length === 0 && localApiProductIds.length > 0 && deletedCount === 0 && createdCount === 0 && updatedCount === 0) {
-         // Esta condición evalúa si no hubo operaciones pero aún hay productos locales.
-         // Si relevantApiProducts es 0, apiProductIds estará vacío.
-         // Esto significa que cualquier localApiProduct que sea 'source: api' será eliminado por el bucle anterior.
-         // Si después de ese bucle, deletedCount sigue siendo 0, significa que los productos locales no eran 'source: api' o algo más falló.
-         // O que no había productos locales 'source: api' para empezar.
-
-         // Considerar el caso: API devuelve 0 productos relevantes. Productos locales existen.
-         // El bucle anterior debería haberlos eliminado si eran 'source: api'.
-         // Si no los eliminó, este log podría ser confuso.
-
-         if (localApiProductIds.length === 0 && relevantApiProducts.length === 0) { // Cambiado de apiProducts a relevantApiProducts
+         if (localApiProductIds.length === 0 && relevantApiProducts.length === 0) { 
              console.log("Sincronización: No hay productos relevantes en la API ni productos de origen API en la base de datos local.");
               return {
                 success: true,
