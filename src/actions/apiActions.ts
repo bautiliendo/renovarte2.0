@@ -1,24 +1,16 @@
-import { INTERNAL_MAIN_CATEGORIES } from "@/config/categories.config";
+import { DISPLAY_MAIN_CATEGORIES } from "@/config/categories.config";
 import { isValidImageUrl } from "@/helpers/isValidImageUrl";
-import dbConnect from "@/lib/dbConnect";
+import { ErrorInfo, ProductApi, ApiCredentials } from "@/utils/types";
+import { CATALOG_URL, AUTH_URL } from "@/constants/api";
 import Product, { IProduct } from "@/models/Product";
-// URL del endpoint de autenticación
-const authUrl = "https://api.gruponucleosa.com/Authentication/Login";
+import dbConnect from "@/lib/dbConnect";
 
-// Tipado para las credenciales esperadas
-interface ApiCredentials {
-  id: number;
-  username: string;
-  password?: string; // Password puede ser opcional si la API lo permite
-}
 
-// Función para obtener el token de autenticación
 export async function getAuthToken(): Promise<string | null> {
   const idString = process.env.GRUPO_NUCLEO_ID;
   const username = process.env.GRUPO_NUCLEO_USERNAME;
   const password = process.env.GRUPO_NUCLEO_PASSWORD;
 
-  // Validar que las variables de entorno necesarias existen
   if (!idString || !username || !password) {
     console.error(
       "Error: Faltan variables de entorno para la autenticación (GRUPO_NUCLEO_ID, GRUPO_NUCLEO_USERNAME, GRUPO_NUCLEO_PASSWORD)"
@@ -26,7 +18,6 @@ export async function getAuthToken(): Promise<string | null> {
     return null;
   }
 
-  // Convertir ID a número
   const id = parseInt(idString, 10);
   if (isNaN(id)) {
     console.error("Error: GRUPO_NUCLEO_ID no es un número válido.");
@@ -40,16 +31,15 @@ export async function getAuthToken(): Promise<string | null> {
   };
 
   try {
-    const response = await fetch(authUrl, {
+    const response = await fetch(AUTH_URL, {
       method: "POST",
       headers: {
         Accept: "*/*",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(credentials), // Convierte el objeto a JSON string
+      body: JSON.stringify(credentials),
     });
 
-    // Verificar si la respuesta de la red fue exitosa
     if (!response.ok) {
       const errorBody = await response.text();
       console.error(
@@ -71,36 +61,9 @@ export async function getAuthToken(): Promise<string | null> {
   }
 }
 
-// Interfaz actualizada según el ejemplo de respuesta de la API
-export interface ProductApi {
-  // Renombrada para evitar conflicto con el modelo Product
-  item_id: number;
-  codigo: string;
-  ean: string;
-  partNumber: string;
-  item_desc_0: string;
-  item_desc_1?: string;
-  item_desc_2?: string;
-  marca: string;
-  categoria: string;
-  subcategoria: string;
-  peso_gr: number;
-  alto_cm: number;
-  ancho_cm: number;
-  largo_cm: number;
-  volumen_cm3: number;
-  precioNeto_USD: number;
-  impuestos: { imp_desc: string; imp_porcentaje: number }[];
-  stock_mdp: number;
-  stock_caba: number;
-  url_imagenes: { url: string }[];
-}
 
-const CATALOG_URL = "https://api.gruponucleosa.com/API_V1/GetCatalog";
-
-// Server Action para obtener el catálogo de productos DE LA API EXTERNA
+// Server Action para obtener el catálogo de productos DE LA API EXTERNA grupo nucleo
 export async function getCatalog(): Promise<ProductApi[] | null> {
-  // 1. Obtener el token de autenticación
   const token = await getAuthToken();
 
   if (!token) {
@@ -111,17 +74,14 @@ export async function getCatalog(): Promise<ProductApi[] | null> {
   }
 
   try {
-    // 2. Realizar la solicitud GET al catálogo con el token
     const response = await fetch(CATALOG_URL, {
       method: "GET",
       headers: {
         Accept: "*/*",
         Authorization: `Bearer ${token}`,
       },
-      // cache: 'no-store' // Descomentar si quieres forzar explícitamente que no se cachee
     });
 
-    // 3. Verificar si la respuesta fue exitosa
     if (!response.ok) {
       const errorBody = await response.text();
       console.error(
@@ -131,20 +91,13 @@ export async function getCatalog(): Promise<ProductApi[] | null> {
       return null;
     }
 
-    // 4. Parsear la respuesta JSON
-    const data: ProductApi[] = await response.json(); // Asume que la respuesta es un array de productos
+    const data: ProductApi[] = await response.json();
 
     return data;
   } catch (error) {
     console.error("Error durante la obtención del catálogo:", error);
     return null;
   }
-}
-
-// Interface para detallar los errores durante la sincronización
-interface ErrorInfo {
-  context?: string; // e.g., "Product ID: 12345" or "General Sync"
-  message: string; // El mensaje de error
 }
 
 //  Server Action para sincronizar productos desde la API externa a MongoDB
@@ -188,8 +141,8 @@ export async function syncProductsFromApi(): Promise<{
       `Sincronización: Se obtuvieron ${apiProductsFromCatalog.length} productos de la API.`
     );
 
-    const relevantApiProducts = apiProductsFromCatalog.filter(p =>
-      INTERNAL_MAIN_CATEGORIES.includes(p.categoria)
+    const relevantApiProducts = apiProductsFromCatalog.filter((p) =>
+      DISPLAY_MAIN_CATEGORIES.includes(p.categoria)
     );
 
     console.log(
@@ -197,38 +150,50 @@ export async function syncProductsFromApi(): Promise<{
     );
 
     if (relevantApiProducts.length === 0 && apiProductsFromCatalog.length > 0) {
-      console.log("Sincronización: Ninguno de los productos obtenidos de la API pertenece a las categorías relevantes configuradas. Se procederá a verificar si hay productos locales para eliminar según este filtro.");
+      console.log(
+        "Sincronización: Ninguno de los productos obtenidos de la API pertenece a las categorías relevantes configuradas. Se procederá a verificar si hay productos locales para eliminar según este filtro."
+      );
     } else if (relevantApiProducts.length === 0) {
-      console.log("Sincronización: La API externa no devolvió productos o ninguno pertenece a categorías relevantes. Se procederá a verificar si hay productos locales para eliminar.");
+      console.log(
+        "Sincronización: La API externa no devolvió productos o ninguno pertenece a categorías relevantes. Se procederá a verificar si hay productos locales para eliminar."
+      );
     }
 
-    const apiProductIds = new Set(relevantApiProducts.map(p => p.item_id));
-    const bulkUpdateOps: import("mongoose").AnyBulkWriteOperation<IProduct>[] = [];
+    const apiProductIds = new Set(relevantApiProducts.map((p) => p.item_id));
+    const bulkUpdateOps: import("mongoose").AnyBulkWriteOperation<IProduct>[] =
+      [];
 
     for (const apiProduct of relevantApiProducts) {
       processedCount++;
       try {
         const validImageUrls: { url: string }[] = [];
         if (apiProduct.url_imagenes && apiProduct.url_imagenes.length > 0) {
-          const imageValidationPromises = apiProduct.url_imagenes.map(async (img) => {
-            const isValid = await isValidImageUrl(img.url);
-            return { url: img.url, isValid };
-          });
-          const validationResults = await Promise.allSettled(imageValidationPromises);
+          const imageValidationPromises = apiProduct.url_imagenes.map(
+            async (img) => {
+              const isValid = await isValidImageUrl(img.url);
+              return { url: img.url, isValid };
+            }
+          );
+          const validationResults = await Promise.allSettled(
+            imageValidationPromises
+          );
 
-          validationResults.forEach(result => {
-            if (result.status === 'fulfilled' && result.value.isValid) {
+          validationResults.forEach((result) => {
+            if (result.status === "fulfilled" && result.value.isValid) {
               validImageUrls.push({ url: result.value.url });
             } else {
-              let failedUrlDetail = 'unknown_url (error during validation)';
-              let errorMessage = 'Image validation failed or an error occurred.';
-              if (result.status === 'fulfilled' && !result.value.isValid) {
+              let failedUrlDetail = "unknown_url (error during validation)";
+              let errorMessage =
+                "Image validation failed or an error occurred.";
+              if (result.status === "fulfilled" && !result.value.isValid) {
                 failedUrlDetail = result.value.url;
-                errorMessage = 'Image reported as invalid by isValidImageUrl.';
-              } else if (result.status === 'rejected') {
+                errorMessage = "Image reported as invalid by isValidImageUrl.";
+              } else if (result.status === "rejected") {
                 errorMessage = `Error during image validation: ${result.reason}`;
               }
-              console.log(`Sincronización: Problem with image for product ${apiProduct.item_id}. URL Hint: ${failedUrlDetail}. Message: ${errorMessage}`);
+              console.log(
+                `Sincronización: Problem with image for product ${apiProduct.item_id}. URL Hint: ${failedUrlDetail}. Message: ${errorMessage}`
+              );
             }
           });
         }
@@ -262,10 +227,11 @@ export async function syncProductsFromApi(): Promise<{
         };
 
         if (validImageUrls.length === 0) {
-             console.log(`Sincronización: Producto ${apiProduct.item_id} (${apiProduct.item_desc_0}) marcado como inactivo debido a la falta de imágenes válidas.`);
+          console.log(
+            `Sincronización: Producto ${apiProduct.item_id} (${apiProduct.item_desc_0}) marcado como inactivo debido a la falta de imágenes válidas.`
+          );
         }
 
-        // Preparar la operación para bulkWrite en lugar de ejecutarla inmediatamente
         bulkUpdateOps.push({
           updateOne: {
             filter: { api_item_id: apiProduct.item_id, source: "api" },
@@ -273,7 +239,6 @@ export async function syncProductsFromApi(): Promise<{
             upsert: true,
           },
         });
-
       } catch (productError) {
         console.error(
           `Sincronización: Error preparando operación para producto con api_item_id: ${apiProduct.item_id}`,
@@ -289,65 +254,114 @@ export async function syncProductsFromApi(): Promise<{
       }
     }
 
-    // Ejecutar operaciones de creación/actualización en lote
     if (bulkUpdateOps.length > 0) {
       try {
-        const bulkResult = await Product.bulkWrite(bulkUpdateOps, { ordered: false });
+        const bulkResult = await Product.bulkWrite(bulkUpdateOps, {
+          ordered: false,
+        });
         createdCount = bulkResult.upsertedCount;
         updatedCount = bulkResult.modifiedCount;
         console.log(
           `Sincronización: BulkWrite para creación/actualización completado. Creados: ${bulkResult.upsertedCount}, Actualizados: ${bulkResult.modifiedCount}, Emparejados: ${bulkResult.matchedCount}.`
         );
       } catch (bulkError) {
-        console.error("Sincronización: Error durante Product.bulkWrite (creación/actualización):", bulkError);
+        console.error(
+          "Sincronización: Error durante Product.bulkWrite (creación/actualización):",
+          bulkError
+        );
         errors.push({
           context: "BulkWrite Operation (create/update)",
-          message: bulkError instanceof Error ? bulkError.message : String(bulkError),
+          message:
+            bulkError instanceof Error ? bulkError.message : String(bulkError),
         });
-        // Dependiendo de la criticidad, podrías decidir si continuar o retornar error aquí
       }
     }
 
-    // OPERACIONES DE ELIMINACIÓN SECUENCIALES (como estaban antes)
-    const localApiProductIds = await Product.find({ source: "api" }, 'api_item_id').lean();
-    
-    for (const localProduct of localApiProductIds) {
-      if (localProduct.api_item_id && !apiProductIds.has(localProduct.api_item_id)) {
-        try {
-          const deleteResult = await Product.deleteOne({ api_item_id: localProduct.api_item_id, source: "api" });
-          if (deleteResult.deletedCount > 0) {
-            deletedCount++;
-            console.log(`Sincronización: Producto ELIMINADO de la DB con api_item_id: ${localProduct.api_item_id} (ya no en API o categoría no relevante)`);
-          }
-        } catch (deleteError) {
-          console.error(
-            `Sincronización: Error eliminando producto con api_item_id: ${localProduct.api_item_id}`,
-            deleteError
-          );
-          errors.push({
-            context: `Deleting product api_item_id: ${localProduct.api_item_id}`,
-            message:
-              deleteError instanceof Error
-                ? deleteError.message
-                : String(deleteError),
-          });
-        }
+    // OPERACIONES DE ELIMINACIÓN OPTIMIZADAS CON deleteMany
+    const localApiProducts = await Product.find(
+      { source: "api" },
+      "api_item_id"
+    ).lean();
+    // Nos aseguramos de que los IDs sean números y no null/undefined antes de añadirlos al Set.
+    const localApiProductItemIds = new Set(
+      localApiProducts
+        .map((p) => p.api_item_id)
+        .filter((id) => typeof id === "number") as number[]
+    );
+
+    const idsToDelete: number[] = [];
+
+    localApiProductItemIds.forEach((localId) => {
+      if (!apiProductIds.has(localId)) {
+        idsToDelete.push(localId);
       }
-    }
-    
-    if (relevantApiProducts.length === 0 && localApiProductIds.length > 0 && deletedCount === 0 && createdCount === 0 && updatedCount === 0) {
-         if (localApiProductIds.length === 0 && relevantApiProducts.length === 0) { 
-             console.log("Sincronización: No hay productos relevantes en la API ni productos de origen API en la base de datos local.");
-              return {
-                success: true,
-                message: "La API externa no devolvió productos relevantes y no hay productos de origen API en la base de datos local para sincronizar o eliminar.",
-                processedCount,
-                createdCount,
-                updatedCount,
-                deletedCount,
-                errors,
-            };
+    });
+
+    if (idsToDelete.length > 0) {
+      try {
+        const deleteResult = await Product.deleteMany({
+          api_item_id: { $in: idsToDelete },
+          source: "api",
+        });
+        if (deleteResult.deletedCount && deleteResult.deletedCount > 0) {
+          deletedCount = deleteResult.deletedCount;
+          console.log(
+            `Sincronización: ${deletedCount} productos ELIMINADOS de la DB (ya no en API relevante o categoría no relevante). IDs: ${idsToDelete.join(
+              ", "
+            )}`
+          );
+        } else {
+          console.log(
+            `Sincronización: Se intentó eliminar ${
+              idsToDelete.length
+            } productos (IDs: ${idsToDelete.join(
+              ", "
+            )}), pero deleteMany reportó 0 eliminaciones.`
+          );
         }
+      } catch (deleteError) {
+        console.error(
+          `Sincronización: Error eliminando productos en lote. IDs: ${idsToDelete.join(
+            ", "
+          )}`,
+          deleteError
+        );
+        errors.push({
+          context: `Bulk deleting products. IDs: ${idsToDelete.join(", ")}`,
+          message:
+            deleteError instanceof Error
+              ? deleteError.message
+              : String(deleteError),
+        });
+      }
+    } else {
+      console.log(
+        "Sincronización: No se encontraron productos locales (source: api) para eliminar que no estén presentes en la carga actual de la API relevante."
+      );
+    }
+
+    if (
+      relevantApiProducts.length === 0 &&
+      localApiProducts.length > 0 &&
+      deletedCount === 0 &&
+      createdCount === 0 &&
+      updatedCount === 0
+    ) {
+      if (localApiProducts.length === 0 && relevantApiProducts.length === 0) {
+        console.log(
+          "Sincronización: No hay productos relevantes en la API ni productos de origen API en la base de datos local."
+        );
+        return {
+          success: true,
+          message:
+            "La API externa no devolvió productos relevantes y no hay productos de origen API en la base de datos local para sincronizar o eliminar.",
+          processedCount,
+          createdCount,
+          updatedCount,
+          deletedCount,
+          errors,
+        };
+      }
     }
 
     const summaryMessage = `Sincronización completada. Productos procesados: ${processedCount}. Creados: ${createdCount}. Actualizados: ${updatedCount}. Eliminados: ${deletedCount}. Errores: ${errors.length}.`;

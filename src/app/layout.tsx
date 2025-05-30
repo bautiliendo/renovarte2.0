@@ -7,7 +7,7 @@ import { Navbar } from "@/components/common/Navbar"
 import Footer from "@/components/common/Footer"
 import Container from "@/components/ui/Container"
 import CategoryFilter from "@/components/CategoryFilter"
-import { DISPLAY_CATEGORIES_FOR_UI } from '@/config/categories.config'
+import { DISPLAY_MAIN_CATEGORIES } from '@/config/categories.config'
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -33,7 +33,7 @@ export default function RootLayout({
           </div>
           <Navbar />
           <CategoryFilter
-            allCategories={DISPLAY_CATEGORIES_FOR_UI}
+            allCategories={DISPLAY_MAIN_CATEGORIES}
             basePath="/products"
           />
           <main className="relative">
