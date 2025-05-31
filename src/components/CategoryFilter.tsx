@@ -15,7 +15,7 @@ export default function CategoryFilter({
     const commonLinkClasses = "font-medium px-4 py-2 rounded-lg flex items-center justify-center whitespace-nowrap text-sm";
 
     return (
-        <div className="sticky top-28 md:top-16 z-50 w-full flex justify-center sm:px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="sticky top-28 md:top-16 z-50 w-full flex justify-center sm:px-4 bg-background/95 ">
             <div className="overflow-x-auto py-3">
                 <div className="inline-flex items-center space-x-3">
                     {allCategories.map((cat) => (
