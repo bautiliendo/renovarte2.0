@@ -1,8 +1,5 @@
 'use client'
 
-import { Button } from "@/components/ui/button"
-import { ArrowRight, ShoppingCart } from "lucide-react"
-import { redirect } from "next/navigation"
 import { ReactTyped } from "react-typed"
 import Image from "next/image"
 
@@ -36,19 +33,6 @@ export default function Home() {
                   loop
                 />
               </div>
-            </div>
-
-            <div className="flex flex-wrap gap-4">
-              <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600"
-                onClick={() => redirect('/buy')}>
-                <ShoppingCart className="mr-2 h-5 w-5" />
-                ¿Cómo Comprar?
-              </Button>
-              <Button size="lg" variant="outline" className="border-gray-700 text-white hover:bg-gray-300"
-                onClick={() => redirect('/products')}>
-                Ver productos
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
             </div>
           </div>
           <div className="flex justify-center items-center border-2 border-gray-700 rounded-lg">
