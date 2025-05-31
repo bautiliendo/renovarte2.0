@@ -1,5 +1,5 @@
 'use client'
-import { Facebook, Instagram } from 'lucide-react'
+import { Facebook } from 'lucide-react'
 import Link from 'next/link'
 import React from 'react'
 
@@ -34,8 +34,7 @@ export default function Footer() {
           <ul className="space-y-2 text-sm">
             <li><Link href="/" className="">Inicio</Link></li>
             <li><Link href="/products" className="">Productos</Link></li>
-            <li><Link href="/buy" className="">Comprar</Link></li>
-            <li><Link href="/business" className="">Empresa</Link></li>
+            <li><Link href="/business" className="">Nosotros</Link></li>
           </ul>
         </div>
 
@@ -51,9 +50,6 @@ export default function Footer() {
         <div className="md:w-1/4">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700 mb-3">Seguinos</h3>
           <div className="flex justify-center md:justify-start gap-4 ">
-            <a href='https://www.instagram.com/renovartecba/' target="_blank" rel="noopener noreferrer">
-              <li className=' hover:text-rose-400 hover:underline list-none'><Instagram size={20} /></li>
-            </a>
             <a href='https://www.facebook.com/renovartecba/' target="_blank" rel="noopener noreferrer">
               <li className=' hover:text-blue-500 hover:underline list-none'> <Facebook size={20} /></li>
             </a>

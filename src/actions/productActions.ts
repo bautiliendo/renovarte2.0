@@ -52,7 +52,7 @@ export async function getProductsFromDB(
 
     const [productsFromDB, totalProducts] = await Promise.all([
       Product.find(filter)
-        .sort({ createdAt: -1 })
+        .sort({ item_desc_0: 1 })
         .skip(skip)
         .limit(limit)
         .lean()

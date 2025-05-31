@@ -1,62 +1,84 @@
-'use client'
-
-import { Button } from "@/components/ui/button"
-import { ArrowRight, ShoppingCart } from "lucide-react"
-import { redirect } from "next/navigation"
-import { ReactTyped } from "react-typed"
+import { getProductsFromDB } from "@/actions/productActions";
+import BenefitsBanner from "@/components/BenefitsBanner";
+import ClientTypedComponent from "@/components/ClientTypedComponent"
+import ProductHorizontalSection from "@/components/ProductHorizontalSection";
 import Image from "next/image"
 
-export default function Home() {
+export const revalidate = 3600; // Revalidar cada hora
 
-  return (
-    <section className="relative overflow-hidden py-20">
-      <div className="container relative mx-auto px-4">
-        <div className="grid gap-12 lg:grid-cols-2 md:gap-8 lg:gap-16">
-          {/* Hero content */}
-          <div className="flex flex-col justify-center space-y-8">
-            <div className="space-y-4">
-              <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
-                RENOVARTE <span className="text-emerald-400">Córdoba</span>
-              </h1>
+export default async function Home() {
+  try {
+    // Obtener productos en paralelo
+    const [featured, newItems] = await Promise.all([
+      getProductsFromDB({
+        category: 'Celulares Libres',
+        limit: 8
+      }),
+      getProductsFromDB({
+        category: 'Television',
+        page: 2,
+        limit: 8
+      })
+    ])
 
-              <p className="max-w-lg text-lg text-gray-300">
-                La tienda donde encontrás todos los electrodomésticos, celulares y productos informáticos para renovar
-                tu casa.
-              </p>
-            </div>
+    return (
+      <div className="space-y-0">
+        <section className="relative overflow-hidden py-20">
+          <div className="container relative mx-auto px-4">
+            <div className="grid gap-12 lg:grid-cols-2 md:gap-8 lg:gap-16">
+              {/* Hero content */}
+              <div className="flex flex-col justify-center space-y-8">
+                <div className="space-y-4">
+                  <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
+                    RENOVARTE <span className="text-emerald-400">Córdoba</span>
+                  </h1>
 
-            <div className="space-y-2">
-              <div className="inline-block rounded-lg py-2 backdrop-blur">
-                <p className="text-sm font-medium text-gray-300">Beneficios exclusivos y convenios con mutuales</p>
-                <ReactTyped
-                  className='text-lg lg:text-3xl font-bold text-[#00df9a]'
-                  strings={['3 ABRIL', 'UPCN', 'Empleados hospital privado']}
-                  typeSpeed={70}
-                  backSpeed={70}
-                  loop
-                />
+                  <p className="max-w-lg text-lg text-gray-300">
+                    La tienda donde encontrás todos los electrodomésticos, celulares y productos informáticos para renovar
+                    tu casa.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="inline-block rounded-lg py-2 backdrop-blur">
+                    <p className="text-sm font-medium text-gray-300">Beneficios exclusivos y convenios con mutuales</p>
+                    <ClientTypedComponent />
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-center items-center border-2 border-gray-700 rounded-lg">
+                <Image src="/promocion.png" alt="Banner" width={1000} height={1000} />
               </div>
             </div>
+          </div>
 
-            <div className="flex flex-wrap gap-4">
-              <Button size="lg" className="bg-emerald-500 hover:bg-emerald-600"
-                onClick={() => redirect('/buy')}>
-                <ShoppingCart className="mr-2 h-5 w-5" />
-                ¿Cómo Comprar?
-              </Button>
-              <Button size="lg" variant="outline" className="border-gray-700 text-white hover:bg-gray-300"
-                onClick={() => redirect('/products')}>
-                Ver productos
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-          <div className="flex justify-center items-center border-2 border-gray-700 rounded-lg">
-            <Image src="/promocion.png" alt="Banner" width={1000} height={1000} />
-          </div>
+        </section>
+        <div className="flex flex-col gap-10 pb-10">
+          <ProductHorizontalSection
+            title="Destacados"
+            products={featured.products || []}
+            viewAllLink="/products?category=Celulares Libres"
+            viewAllText="Ver más"
+        />
+
+        <ProductHorizontalSection
+          title="Television"
+          products={newItems.products || []}
+          viewAllLink={`/products?category=Television`}
+            viewAllText="Ver más"
+          />
+
+          <BenefitsBanner />
         </div>
       </div>
-      
-    </section>
-  )
+    )
+  } catch (error) {
+    console.error('Error loading homepage:', error)
+    return (
+      <div className="container mx-auto px-4 py-20">
+        <h1 className="text-2xl text-white">Error cargando productos</h1>
+        <p className="text-gray-300">Por favor, intenta recargar la página.</p>
+      </div>
+    )
+  }
 }
