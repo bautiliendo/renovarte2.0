@@ -6,10 +6,35 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Menu, Search } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/products?query=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      router.push("/products");
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch(e);
+    }
+  }
+
+  useEffect(() => {
+    const currentQuery = searchParams.get('query') || ''
+    setSearchQuery(currentQuery)
+  }, [searchParams])
 
   return (
     <header className="sticky top-0 z-50 w-fullbg-background/100 backdrop-blur supports-[backdrop-filter]:bg-background/100">
@@ -42,18 +67,11 @@ export function Navbar() {
                     Productos
                   </Link>
                   <Link
-                    href="/buy"
-                    className="text-lg font-medium text-center hover:text-foreground/80"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    Comprar
-                  </Link>
-                  <Link
                     href="/business"
                     className="text-lg font-medium text-center hover:text-foreground/80"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    Empresa
+                    Nosotros
                   </Link>
                 </nav>
               </SheetContent>
@@ -63,10 +81,16 @@ export function Navbar() {
 
         {/* Searchbar */}
         <div className="w-full md:w-auto mb-2 md:mb-0 md:ml-6">
-          <div className="relative">
+          <form onSubmit={handleSearch} className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar productos..." className="pl-8 md:w-[300px] lg:w-[400px]" />
-          </div>
+            <Input
+              placeholder="Buscar productos..."
+              className="pl-8 md:w-[300px] lg:w-[400px]"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+          </form>
         </div>
 
         {/* Desktop Nav Links + Cart */}
@@ -75,11 +99,8 @@ export function Navbar() {
             <Link href="/products" className="transition-colors hover:text-foreground/80 text-foreground">
               Productos
             </Link>
-            <Link href="/buy" className="hidden lg:flex transition-colors hover:text-foreground/80 text-foreground">
-              Comprar
-            </Link>
             <Link href="/business" className="transition-colors hover:text-foreground/80 text-foreground">
-              Empresa
+              Nosotros
             </Link>
           </nav>
         </div>
