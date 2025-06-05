@@ -14,6 +14,60 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Renovarte - Tienda de Electrodomésticos y Tecnología",
   description: "Encontrá todos los electrodomésticos, celulares y productos informáticos para renovar tu casa.",
+  keywords: "electrodomésticos, celulares, tecnología, informática, renovarte, tienda online",
+  authors: [{ name: "Renovarte" }],
+  creator: "Renovarte",
+  publisher: "Renovarte",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  metadataBase: new URL('https://renovarte.com.ar'), // Cambia por tu dominio real
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: "Renovarte - Tienda de Electrodomésticos y Tecnología",
+    description: "Encontrá todos los electrodomésticos, celulares y productos informáticos para renovar tu casa.",
+    url: 'https://renovarte.com.ar', // Cambia por tu dominio real
+    siteName: 'Renovarte',
+    images: [
+      {
+        url: '/Renovartelogo.png',
+        width: 1200,
+        height: 630,
+        alt: 'Renovarte - Logo',
+      },
+    ],
+    locale: 'es_AR',
+    type: 'website',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  icons: {
+    icon: [
+      { url: '/R_circular.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/Renovartelogo.png', sizes: '180x180', type: 'image/png' },
+    ],
+    other: [
+      {
+        rel: 'apple-touch-icon-precomposed',
+        url: '/Renovartelogo.png',
+      },
+    ],
+  },
 }
 
 export default function RootLayout({

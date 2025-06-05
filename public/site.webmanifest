@@ -1,0 +1,25 @@
+{
+  "name": "Renovarte - Tienda de Electrodomésticos y Tecnología",
+  "short_name": "Renovarte",
+  "description": "Encontrá todos los electrodomésticos, celulares y productos informáticos para renovar tu casa.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#10b981",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/R_circular.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/Renovartelogo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "business"],
+  "lang": "es-AR"
+} 
